@@ -1,0 +1,9 @@
+# 源码统一用 LF。Windows 上如果 Git 自动把换行转成 CRLF，
+# 会让「测试文件没被改过」这类比对出问题（虽然那条已经忽略空白了，
+# 但 diff、blame 也会被搅乱）。
+* text=auto eol=lf
+
+# 二进制文件别动
+*.png binary
+*.jpg binary
+*.pdf binary

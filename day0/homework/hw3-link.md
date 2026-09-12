@@ -19,7 +19,7 @@
 
 - [ ] 完成了 HW2：`python tools/build.py` 全绿（`encoder 4/4 · clamp 4/4`）
 - [ ] 完成了 HW2 的提交，`git status` 干净
-- [ ] 看过了录播 `Tools/01-keil-stm32.md`（讲编译流程的那一段）
+- [ ] 看过了录播 `../notes/01-keil-stm32.md`（讲编译流程的那一段）
 
 ---
 
@@ -293,8 +293,8 @@ python tools/grade.py hw3 .
 
 | 内容 | 在哪 |
 | --- | --- |
-| 编译 / 链接流程 | Day 0 录播 · `Tools/01-keil-stm32.md` |
-| CLion 里怎么看构建输出 | Day 0 录播 · `Tools/02-clion-setup.md` |
+| 编译 / 链接流程 | Day 0 录播 · `../notes/01-keil-stm32.md` |
+| CLion 里怎么看构建输出 | Day 0 录播 · `../notes/02-clion-setup.md` |
 | CMakeLists 是什么 | 同上 |
 
 ---

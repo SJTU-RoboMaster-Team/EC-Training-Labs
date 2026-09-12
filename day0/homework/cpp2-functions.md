@@ -182,6 +182,8 @@ python tools/grade.py cpp2 .
 
 - [ ] 能构建
 - [ ] `test_motor` 全部用例通过
+- [ ] `tests/` 下的测试文件**没有被修改**
+- [ ] 历史里有**你自己写的提交**
 - [ ] `setTorque` 的签名没改（`int16_t setTorque(float)`）
 - [ ] commit message 符合 `type(scope): subject`
 

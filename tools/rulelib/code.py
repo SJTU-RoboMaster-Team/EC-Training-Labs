@@ -81,6 +81,88 @@ def find_clang_format(explicit: str | None = None) -> str | None:
     return None
 
 
+def find_cmake() -> str | None:
+    """找一个能用的 cmake。
+
+    只在 PATH 上找会漏掉一类人：**CLion 自带 CMake，但不进 PATH**。
+    学生装了 CLion 就能在 IDE 里构建，但 `python tools/grade.py` 会说
+    「本机找不到 cmake，无法验证」—— 他没有任何办法修。
+    （clang-format 早就这么找了，cmake 一直漏着。）
+    """
+    exe = shutil.which("cmake")
+    if exe:
+        return exe
+
+    import glob
+    home = Path.home()
+    patterns: list[str] = []
+    if os.name == "nt":
+        local = os.environ.get("LOCALAPPDATA", str(home / "AppData" / "Local"))
+        patterns += [
+            rf"{local}\Programs\CLion*\bin\cmake\win\bin\cmake.exe",
+            rf"{local}\JetBrains\Toolbox\apps\CLion\**\bin\cmake\win\bin\cmake.exe",
+            r"C:\Program Files\JetBrains\*\bin\cmake\win\bin\cmake.exe",
+        ]
+    else:
+        patterns += [
+            str(home / ".local/share/JetBrains/Toolbox/apps/CLion/**/bin/cmake/linux/bin/cmake"),
+            "/opt/clion*/bin/cmake/linux/bin/cmake",
+            "/snap/clion/current/bin/cmake/linux/bin/cmake",
+        ]
+    for pat in patterns:
+        hits = sorted(glob.glob(pat, recursive=True))
+        if hits:
+            return hits[-1]
+    return None
+
+
+def guess_generators() -> list[str]:
+    """按可用性排出一串候选生成器（先空着 = 让 cmake 自己挑）。
+
+    **为什么 grader 也要这个**：Windows 上如果没装 Visual Studio，cmake 会默认挑
+    NMake Makefiles —— 而 nmake 只在 VS 的开发者命令提示符里才有，
+    普通终端里报 `nmake 不是内部或外部命令`，看起来像编译器坏了。
+
+    学生的 `tools/build.py` 早就会自动换生成器了，但**验收器原来不会** ——
+    于是出现「学生自己能构建，验收却说配置失败」这种最让人火大的情况。
+    """
+    cands: list[str] = [""]                     # 空串 = 用默认生成器
+    if shutil.which("ninja"):
+        cands.append("Ninja")
+    if os.name == "nt":
+        if shutil.which("mingw32-make"):
+            cands.append("MinGW Makefiles")
+        vswhere = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) \
+            / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
+        if vswhere.exists():
+            cands.append("Visual Studio 17 2022")
+    elif shutil.which("make"):
+        cands.append("Unix Makefiles")
+    return cands
+
+
+def configure(proj: Path, build_dir: str) -> tuple[bool, str]:
+    """在 build_dir 里配置工程。返回 (成功吗, 失败时的诊断)。
+
+    依次试候选生成器，第一个成功的就用它。
+    """
+    cmake = find_cmake()
+    if not cmake:
+        return False, "本机找不到 cmake（PATH 和 CLion 自带目录都翻过了）"
+    last = ""
+    for gen in guess_generators():
+        cmd = [cmake, "-S", str(proj), "-B", build_dir]
+        if gen:
+            cmd += ["-G", gen]
+        r = _run(cmd)
+        if r.returncode == 0:
+            return True, gen or "默认生成器"
+        last = r.stderr or r.stdout
+        # 换生成器前要清掉上次的缓存，否则报 generator does not match
+        shutil.rmtree(build_dir, ignore_errors=True)
+    return False, _best_error_lines(last)
+
+
 def find_cxx() -> str | None:
     """找一个 C++ 编译器，给探针用（不依赖学生的构建系统）。"""
     for name in ("g++", "clang++", "c++"):
@@ -152,15 +234,11 @@ def check_build(repo: Repo, project: str) -> Result:
     proj = repo.root / project
     if not (proj / "CMakeLists.txt").is_file():
         return Result("能构建", False, f"找不到 {project}/CMakeLists.txt")
-    if not find_tool("cmake"):
-        return Result("能构建", False, "本机找不到 cmake，无法验证")
-
     with tempfile.TemporaryDirectory(prefix="ectl-grade-") as td:
-        cfg = _run(["cmake", "-S", str(proj), "-B", td])
-        if cfg.returncode != 0:
-            return Result("能构建", False, "cmake 配置失败："
-                          + _best_error_lines(cfg.stderr or cfg.stdout, prefixes=[td, str(proj)]))
-        bld = _run(["cmake", "--build", td, "-j"])
+        okc, why = configure(proj, td)
+        if not okc:
+            return Result("能构建", False, "cmake 配置失败：" + why)
+        bld = _run([find_cmake() or "cmake", "--build", td, "-j"])
         if bld.returncode != 0:
             return Result("能构建", False, "编译失败："
                           + _best_error_lines(bld.stdout + bld.stderr, prefixes=[td, str(proj)]))

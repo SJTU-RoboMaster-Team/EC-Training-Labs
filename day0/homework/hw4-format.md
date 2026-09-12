@@ -252,7 +252,7 @@ python tools/grade.py hw4 .
 
 | 内容 | 在哪 |
 | --- | --- |
-| clang-format 是什么、怎么配 | Day 0 录播 · `Tools/03-clang-format.md` |
+| clang-format 是什么、怎么配 | Day 0 录播 · `../notes/03-clang-format.md` |
 | atomic commit | Day 0 课件 Loop 2 |
 | `git diff` 的各种开关 | Day 0 课件 Loop 1 |
 

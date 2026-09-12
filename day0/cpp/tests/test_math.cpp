@@ -1,3 +1,5 @@
+#include <cstring>
+
 #include "base/common/math.h"
 #include "tests/test_util.h"
 
@@ -26,9 +28,9 @@ int main() {
   float inf_v = 1.0f;
   {
     uint32_t bits = 0x7FC00000u;   // quiet NaN
-    __builtin_memcpy(&nan_v, &bits, 4);
+    std::memcpy(&nan_v, &bits, 4);
     bits = 0x7F800000u;            // +inf
-    __builtin_memcpy(&inf_v, &bits, 4);
+    std::memcpy(&inf_v, &bits, 4);
   }
   float one = 1.0f;
   ok(math::isNanOrInf(&nan_v), "isNanOrInf(NaN)");

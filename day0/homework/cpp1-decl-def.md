@@ -56,7 +56,7 @@ cmake --build build
 >
 > 换生成器要**先把 `build/` 删掉**，否则会报
 > `generator does not match the generator used previously`。
-> 详⻅ `Tools/02-clion-setup.md` §2。
+> 详⻅ `../notes/02-clion-setup.md` §2。
 
 **它一定会失败。** 报错长这样：
 
@@ -172,7 +172,9 @@ python tools/grade.py cpp1 .
 │ ✅ 能构建                 cmake 配置 + 编译通过            │
 │ ✅ test_math 全过         math 13/13                       │
 │ ✅ 4 个函数都有实现       limit, loopLimit, ...            │
-│ ✅ loopLimit 签名没改     契约成立（探针编译通过）         │
+│ ✅ 四个函数签名没改       契约成立（探针编译通过）         │
+│ ✅ 测试文件未被修改       tests 下的文件没被改动过         │
+│ ✅ 你自己有提交           1 次提交                         │
 │ ✅ message 格式           1/1 条合规                       │
 ├────────────────────────────────────────────────────────────┤
 │ 结论   PASS                                                │
@@ -197,7 +199,9 @@ python tools/grade.py cpp1 .
 - [ ] 能构建（cmake 配置 + 编译都成功）
 - [ ] `test_math` 13 个用例全过
 - [ ] `limit` / `loopLimit` / `degNormalize180` / `isNanOrInf` **四个都有实现**
-- [ ] `loopLimit` 的签名没改（后两个参数仍是 `const float&`）
+- [ ] **四个函数的签名都没改**（`limit` 全按值、`loopLimit` 后两个 `const float&`、`isNanOrInf` 收指针）
+- [ ] `tests/` 下的测试文件**没有被修改**
+- [ ] 历史里有**你自己写的提交**
 - [ ] commit message 符合 `type(scope): subject`
 
 ---

@@ -1,0 +1,17 @@
+# 构建目录
+build/
+cmake-build-*/
+
+# 构建产物
+*.o
+*.obj
+*.a
+*.lib
+*.exe
+*.pdb
+
+# 编辑器
+.idea/
+.vscode/
+*.autosave
+compile_commands.json

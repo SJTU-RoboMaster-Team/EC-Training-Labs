@@ -216,6 +216,8 @@ python tools/grade.py cpp4 .
 
 - [ ] 能构建
 - [ ] `test_can` 全部用例通过
+- [ ] `tests/` 下的测试文件**没有被修改**
+- [ ] 历史里有**你自己写的提交**
 - [ ] 工程里**没有出现 `double`**
 - [ ] `degNormalize180` 的返回类型仍是 `float`
 - [ ] commit message 符合 `type(scope): subject`

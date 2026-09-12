@@ -64,7 +64,7 @@ python tools/grade.py --list      # 看还有哪些练习
 
 > **配置就失败的话，是生成器没选对**（Windows 上最常见）。
 > 试 `-G Ninja`（装了 Ninja）或 `-G "MinGW Makefiles"`（装了 MinGW）；
-> 换生成器前要先删掉 `build/`。详见 `Tools/02-clion-setup.md` §2。
+> 换生成器前要先删掉 `build/`。详见 `../notes/02-clion-setup.md` §2。
 
 **第一次构建会失败**，报的是：
 
@@ -83,10 +83,10 @@ undefined reference to `math::limit(float, float, float)'
 
 | 练习 | 必修项 |
 | --- | --- |
-| `cpp1` | 能编译 · `test_math` 全过 · 四个函数都有实现 · **`loopLimit` 签名没改** · commit message 格式 |
-| `cpp2` | 能编译 · `test_motor` 全过 · **`setTorque` 签名没改** · commit message 格式 |
-| `cpp3` | 能编译 · `test_chassis` 全过 · `test_motor` 没被改坏 · commit message 格式 |
-| `cpp4` | 能编译 · `test_can` 全过 · **不许出现 `double`** · 浮点返回 `float` · commit message 格式 |
+| `cpp1` | 能编译 · `test_math` 全过 · 四个函数都有实现 · **四个函数签名没改** · 测试文件未被修改 · 你自己有提交 · commit message 格式 |
+| `cpp2` | 能编译 · `test_motor` 全过 · 测试文件未被修改 · 你自己有提交 · `setTorque` 签名没改 · commit message 格式 |
+| `cpp3` | 能编译 · `test_chassis` 全过 · 测试文件未被修改 · 你自己有提交 · `test_motor` 没被改坏 · commit message 格式 |
+| `cpp4` | 能编译 · `test_can` 全过 · 测试文件未被修改 · 你自己有提交 · **不许出现 `double`** · 浮点返回 `float` · commit message 格式 |
 
 **「签名没改」是怎么验的**：不是读你的代码猜，而是拿一小段 `static_assert`
 和你的头文件一起编译。编译过了就说明契约成立；编译不过时你会看到

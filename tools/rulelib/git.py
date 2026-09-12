@@ -31,20 +31,48 @@ ARTIFACT_PATTERNS = [
 
 
 def check_message_format(repo: Repo, pattern: str, rev: str = "HEAD",
-                         skip_merges: bool = True) -> Result:
-    """所有 commit message 必须匹配 pattern。"""
+                         skip_merges: bool = True, own_only: bool = False,
+                         example: str = "feat(motor): clamp torque before narrowing") -> Result:
+    """commit message 必须匹配 pattern。
+
+    own_only=True 时**只查学生自己写的提交**，不看仓库自带的历史。
+
+    为什么需要这个开关：仓库自带 36 条提交，学生的练习只关心自己写的那几条。
+    不区分的话，学生在仓库另一个角落（比如 Git 那条线的 `day0/project/`）
+    随便提交一句什么，这边的练习就会挂 —— 两条线明明是独立的。
+    （这条是学生视角走查时发现的。）
+
+    example 会写进报错里。原来只说「N 条不合规」，学生不知道**应该**长什么样。
+    """
     rx = re.compile(pattern)
-    commits = repo.commits(rev)
-    bad = [c for c in commits
-           if not (skip_merges and len(c["parents"]) >= 2)
-           and not rx.match(c["subject"])]
-    total = sum(1 for c in commits if not (skip_merges and len(c["parents"]) >= 2))
+    commits = repo.own_commits(rev) if own_only else repo.commits(rev)
+    if skip_merges:
+        commits = [c for c in commits if len(c["parents"]) < 2]
+    bad = [c for c in commits if not rx.match(c["subject"])]
     if bad:
-        detail = "；".join(f"{c['hash'][:7]} {c['subject'][:32]!r}" for c in bad[:3])
+        detail = "；".join(f"{c['hash'][:7]} {c['subject'][:28]!r}" for c in bad[:3])
         if len(bad) > 3:
             detail += f" …等 {len(bad)} 条"
-        return Result("message 格式", False, f"{len(bad)}/{total} 条不合规：{detail}")
-    return Result("message 格式", True, f"{total}/{total} 条合规")
+        return Result("message 格式", False,
+                      f"{len(bad)}/{len(commits)} 条不合规：{detail}"
+                      f"。应该长这样：{example}")
+    if not commits:
+        return Result("message 格式", True, "还没有你自己的提交")
+    return Result("message 格式", True, f"{len(commits)}/{len(commits)} 条合规")
+
+
+def check_own_commits(repo: Repo, min_n: int = 1, rev: str = "HEAD") -> Result:
+    """学生**自己**至少要有 min_n 次提交。
+
+    为什么需要：`check_build` / `check_tests` 读的是工作区，所以
+    「代码写对了但一次都没提交」会全绿通过。任务书里明明要求提交，
+    验收却不管 —— 这是学生视角走查时发现的漏洞。
+    """
+    n = len(repo.own_commits(rev))
+    if n < min_n:
+        return Result("你自己有提交", False,
+                      f"历史里没有你自己写的提交（`git log --author=<你>` 看看）")
+    return Result("你自己有提交", True, f"{n} 次提交")
 
 
 def check_message_blacklist(repo: Repo, words: list[str], rev: str = "HEAD") -> Result:
@@ -256,25 +284,48 @@ def check_atomic_heuristic(repo: Repo, max_top_dirs: int = 3,
     return Result("atomic 启发式", True, "没有明显跨模块的巨型提交", severity="warn")
 
 
+def _last_course_commit_touching(repo: Repo, path: str, rev: str = "HEAD") -> str | None:
+    """课程自己对这个路径的最后一次提交（从 HEAD 往回找）。
+
+    判据是**作者身份**：仓库自带的历史都是课程身份提交的，学生用的是自己的。
+    这样学生的提交天然被排除在外，基准始终是"学生动手之前的那一版"。
+    """
+    course = repo.course_author()
+    if not course:
+        return None
+    prefix = path.rstrip("/") + "/"
+    for c in repo.commits(rev):
+        if c["email"] != course:
+            continue
+        if any(f == path or f.startswith(prefix) for f in repo.files_changed(c["hash"])):
+            return c["hash"]
+    return None
+
+
 def check_path_unmodified(repo: Repo, path: str, rev: str = "HEAD",
                           name: str = "测试文件未被修改") -> Result:
     """某个路径下的原有文件，内容**语义上**没有被改过。
 
     用来保护测试文件：改测试让测试通过 = 任务没完成。
-    对比基准取"最早引入该路径的提交"，所以不依赖外部参照物。
+
+    **基准取"课程自己对这个路径的最后一次提交"**，不是"最早引入它的提交"。
+    这个区别很关键：课程自己后来也会改测试文件（比如练习重构时删掉一个用例），
+    用"最早那版"当基准的话，课程自己的改动会被算成学生作弊。
+    （这是学生视角走查时暴露出来的：cpp 的测试文件在课程后续提交里改过两次。）
 
     两个关键设计：
 
     **① 忽略空白。** 学生做完 HW4 会用 clang-format 把整个工程重排一遍，
     测试文件也会被重新缩进 —— 那是**格式**变化，不是**断言**变化。
     逐字节比对会把正常操作判成作弊，所以这里把空白全部去掉再比。
+    （顺带也解决了 Windows 上 CRLF 的问题。）
 
     **② 同时查工作区和已提交内容。** 学生自查时改动往往还没提交，
     只查 HEAD 会漏。允许**新增**文件（多写测试是好事），只禁止改动原有文件。
     """
-    first = repo.first_commit_adding(path, rev)
+    first = _last_course_commit_touching(repo, path, rev)
     if first is None:
-        return Result(name, False, f"历史里找不到 {path}")
+        return Result(name, False, f"课程历史里找不到 {path}")
 
     def norm(text: str) -> str:
         """去掉所有空白字符 —— 只比"代码说了什么"，不比"怎么排版"。"""
@@ -306,7 +357,7 @@ def check_path_unmodified(repo: Repo, path: str, rev: str = "HEAD",
 
     if changed:
         return Result(name, False, f"被改动了：{', '.join(sorted(set(changed))[:3])}")
-    return Result(name, True, f"{path} 下的测试与最初一致")
+    return Result(name, True, f"{path} 下的文件没被改动过")
 
 def check_file_contains(repo: Repo, path: str, needles: list[str],
                         rev: str = "HEAD", name: str | None = None) -> Result:

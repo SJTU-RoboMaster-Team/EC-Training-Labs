@@ -212,8 +212,8 @@ python tools/grade.py hw1 .
 
 | 内容 | 在哪 |
 | --- | --- |
-| CLion 基本操作 | Day 0 录播 · `Tools/02-clion-setup.md` |
-| 编译与链接 | Day 0 录播 · `Tools/01-keil-stm32.md` |
+| CLion 基本操作 | Day 0 录播 · `../notes/02-clion-setup.md` |
+| 编译与链接 | Day 0 录播 · `../notes/01-keil-stm32.md` |
 | CMake 是什么 | 同上 |
 
 ---
