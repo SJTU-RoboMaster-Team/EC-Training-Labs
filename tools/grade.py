@@ -27,7 +27,8 @@ rulelib/           可复用的规则库（git 规则、代码规则）
 courses/           ★ 每门课一个文件，换课程只改这里
 ```
 
-加一门课：在 `courses/` 里写一个 `.py`，里面给出 `MODULE` / `MODULE_TITLE` / `LESSONS`。
+加一门课：在 `courses/` 里写一个 `.py`，里面给出：
+  `MODULE`（英文短名，稳定）· `MODULE_TITLE`（给学生看的标题）· `LESSONS`
 不用动这个文件，也不用动 `rulelib/`。
 
 ---
@@ -77,15 +78,21 @@ from rulelib.base import Repo, RepoError, Result, enable_vt  # noqa: E402
 # ══════════════════════════════════════════════════════════════════
 
 
-def load_courses() -> dict[str, tuple[str, str, dict]]:
+def load_courses() -> dict[str, tuple]:
     """把 `courses/` 下每个模块读进来。
 
-    返回 {lesson_id: (模块名, 作业标题, [规则...])}。
+    返回 {lesson_id: (模块id, 模块标题, 作业标题, [规则...], 选项)}。
+
+    **模块 id 和标题是两个东西**：id 是稳定的英文短名（`cpp-basics`），
+    给分组和 `--json` 的机器消费者用；标题是给学生看的（`C++ 基础 · 自学模块`）。
+    原来只用了标题，于是 `MODULE` 这个常量在文档和两门课里都声明了、
+    引擎却从来不读 —— 又一处「文档说了、实现没做」。
+
     课程文件坏了只跳过它自己 —— 一门课写错不该让另一门课也用不了。
     """
     import courses as pkg
 
-    out: dict[str, tuple[str, str, dict]] = {}
+    out: dict[str, tuple] = {}
     for info in pkgutil.iter_modules(pkg.__path__):
         if info.name.startswith("_"):
             continue
@@ -95,12 +102,13 @@ def load_courses() -> dict[str, tuple[str, str, dict]]:
             print(f"!! 课程 {info.name} 加载失败：{type(e).__name__}: {e}",
                   file=sys.stderr)
             continue
+        mid = getattr(mod, "MODULE", info.name)
         title = getattr(mod, "MODULE_TITLE", info.name)
         for lesson, entry in getattr(mod, "LESSONS", {}).items():
             if lesson in out:
                 print(f"!! 作业编号重复：{lesson}（{info.name} 和 {out[lesson][0]}）",
                       file=sys.stderr)
-            out[lesson] = (title, *entry)
+            out[lesson] = (mid, title, *entry)
     return out
 
 
@@ -308,13 +316,15 @@ def main() -> int:
     lessons = load_courses()
 
     if args.list or not args.lesson:
-        by_module: dict[str, list[tuple[str, str]]] = {}
+        by_module: dict[str, tuple[str, list[tuple[str, str]]]] = {}
         for lid, entry in lessons.items():
-            by_module.setdefault(entry[0], []).append((lid, entry[1]))
+            mid, mtitle, name = entry[0], entry[1], entry[2]
+            by_module.setdefault(mid, (mtitle, []))[1].append((lid, name))
         print("可用的作业：")
-        for mod in sorted(by_module):
-            print(f"\n  【{mod}】")
-            for lid, name in sorted(by_module[mod]):
+        for mid in sorted(by_module):
+            mtitle, items = by_module[mid]
+            print(f"\n  【{mtitle}】")
+            for lid, name in sorted(items):
                 print(f"    {lid:6s} {name}")
         print()
         return 0
@@ -328,8 +338,8 @@ def main() -> int:
         return 2
 
     entry = lessons[args.lesson]
-    module, title, rules = entry[0], entry[1], entry[2]
-    opts = entry[3] if len(entry) > 3 else {}
+    module, module_title, title, rules = entry[0], entry[1], entry[2], entry[3]
+    opts = entry[4] if len(entry) > 4 else {}
     if args.clang_format:
         # 引擎不认识 clang-format，也不该认识；规则库自己会读这个变量
         import os
@@ -353,6 +363,7 @@ def main() -> int:
         print(json.dumps({
             "lesson": args.lesson,
             "module": module,
+            "module_title": module_title,
             "repo": shown,
             "branch": branch,
             "verdict": "FAIL" if any(r.blocking for r in results) else "PASS",
