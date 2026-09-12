@@ -235,8 +235,11 @@ feat(arm): add wrap_angle_deg and wire it into the control loop
 python tools/grade.py hw3 .
 ```
 
-> **`grade.py` 就在你的仓库里**（`tools/grade.py`）。它和老师用的是同一份代码，
-> 所以**你跑出什么结果，老师就验收什么结果**。
+> **`grade.py` 就在你的仓库里**（`tools/grade.py`），和老师用的是同一份代码 ——
+> 所以你自查看到的结果，就是验收时会看到的结果。
+>
+> 前提是**别改它**。改了只会骗到你自己：验收时老师用的是他那份，
+> 跑的还是同一套规则。
 
 **期望看到：**
 

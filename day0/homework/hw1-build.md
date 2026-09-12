@@ -152,8 +152,11 @@ testutil::check_near("backward across zero", run(back_wrap, 4), -12.0f, 0.01f);
 python tools/grade.py hw1 .
 ```
 
-> **`grade.py` 就在你的仓库里**（`tools/grade.py`）。它和老师用的是同一份代码，
-> 所以**你跑出什么结果，老师就验收什么结果**。
+> **`grade.py` 就在你的仓库里**（`tools/grade.py`），和老师用的是同一份代码 ——
+> 所以你自查看到的结果，就是验收时会看到的结果。
+>
+> 前提是**别改它**。改了只会骗到你自己：验收时老师用的是他那份，
+> 跑的还是同一套规则。
 
 **期望看到：**
 

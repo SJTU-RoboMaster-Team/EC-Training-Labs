@@ -56,7 +56,7 @@ cmake -S . -B build               # 配置失败再加 -G（见下）
 cmake --build build
 ctest --test-dir build --output-on-failure
 
-# ② 用验收工具自查（和老师用的是同一份代码）
+# ② 用验收工具自查（和老师用的是同一份代码 —— 别改它，改了只骗到你自己）
 cd ../..
 python tools/grade.py cpp1 .
 python tools/grade.py --list      # 看还有哪些练习

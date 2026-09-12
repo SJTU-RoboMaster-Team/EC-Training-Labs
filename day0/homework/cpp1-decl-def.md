@@ -163,6 +163,11 @@ commit message 用 `type(scope): subject` 格式（和 Git 线的要求一样）
 python tools/grade.py cpp1 .
 ```
 
+> **`grade.py` 就在你仓库里**（`tools/grade.py`），和老师用的是同一份代码 ——
+> 你自查看到的结果，就是验收时会看到的结果。**前提是别改它**：
+> 验收时老师用的是他那份，跑的还是同一套规则。
+
+
 **期望看到：**
 
 ```text
