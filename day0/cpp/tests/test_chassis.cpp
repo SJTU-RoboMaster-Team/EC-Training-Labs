@@ -14,10 +14,10 @@ int main() {
        "modeName kCalibrate");
 
   motor::Motor wheels[4] = {
-      {djimotor::RawData{}, motor::Type::M3508, nullptr},
-      {djimotor::RawData{}, motor::Type::M3508, nullptr},
-      {djimotor::RawData{}, motor::Type::M3508, nullptr},
-      {djimotor::RawData{}, motor::Type::M3508, nullptr},
+      {djimotor::RawData{}, motor::Type::M3508},
+      {djimotor::RawData{}, motor::Type::M3508},
+      {djimotor::RawData{}, motor::Type::M3508},
+      {djimotor::RawData{}, motor::Type::M3508},
   };
   app::Chassis c(wheels, 4);
 
