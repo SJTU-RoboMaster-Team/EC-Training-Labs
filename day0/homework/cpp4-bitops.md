@@ -221,6 +221,7 @@ python tools/grade.py cpp4 .
 - [ ] 工程里**没有出现 `double`**
 - [ ] `degNormalize180` 的返回类型仍是 `float`
 - [ ] commit message 符合 `type(scope): subject`
+- [ ] commit message 不是废话（`update` / `修改` 这类不合格）
 
 ### 为什么「不许出现 double」是必修项
 

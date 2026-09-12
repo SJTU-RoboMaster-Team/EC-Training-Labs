@@ -75,9 +75,15 @@ def check_own_commits(repo: Repo, min_n: int = 1, rev: str = "HEAD") -> Result:
     return Result("你自己有提交", True, f"{n} 次提交")
 
 
-def check_message_blacklist(repo: Repo, words: list[str], rev: str = "HEAD") -> Result:
-    """commit subject 不得是低信息量的词。"""
-    commits = repo.commits(rev)
+def check_message_blacklist(repo: Repo, words: list[str], rev: str = "HEAD",
+                            own_only: bool = False,
+                            example: str = "fix(clamp): skip resistance check while calibrating") -> Result:
+    """commit subject 不得是低信息量的词。
+
+    own_only=True 时只看学生自己的提交（和 check_message_format 一样的道理：
+    仓库自带的历史不该因为学生别处的提交而挂掉这边的练习）。
+    """
+    commits = repo.own_commits(rev) if own_only else repo.commits(rev)
     hits = []
     for c in commits:
         if len(c["parents"]) >= 2:      # merge commit 的默认 message 不算
@@ -87,7 +93,8 @@ def check_message_blacklist(repo: Repo, words: list[str], rev: str = "HEAD") -> 
             hits.append(c)
     if hits:
         detail = "；".join(f"{c['hash'][:7]} {c['subject'][:24]!r}" for c in hits[:3])
-        return Result("message 黑名单", False, f"{len(hits)} 条低信息量：{detail}")
+        return Result("message 黑名单", False,
+                      f"{len(hits)} 条低信息量：{detail}。要说清改了什么，比如：{example}")
     return Result("message 黑名单", True, "没有低信息量 message")
 
 

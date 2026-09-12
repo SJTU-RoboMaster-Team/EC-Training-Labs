@@ -211,6 +211,7 @@ python tools/grade.py cpp3 .
 - [ ] 历史里有**你自己写的提交**
 - [ ] `test_motor` 仍然全过（没把 `cpp2` 的成果改坏）
 - [ ] commit message 符合 `type(scope): subject`
+- [ ] commit message 不是废话（`update` / `修改` 这类不合格）
 
 ---
 

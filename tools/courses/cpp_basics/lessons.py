@@ -26,6 +26,15 @@ PROBES = Path(__file__).resolve().parent / "probes"
 
 MESSAGE_PATTERN = r"^(feat|fix|refactor|docs|test|chore|tune|style)(\([a-z0-9_]+\))?!?: .+"
 
+# 低信息量的 message。和 Git 那条线（hw5）用的是同一份 —— 那是对全队的约定，
+# 不该因为换了条线就松掉。
+BLACKLIST = [
+    "update", "modify", "change", "changes", "tmp", "temp", "test", "tests",
+    "tuning", "save", "commit", "push", "fix", "feat", "wip", "done", "ok",
+    "改", "修改", "更新", "调试", "暂存", "备份", "提交", "测试",
+    "111", "1", "123", "aaa", "xxx", "finally", "终于好了",
+]
+
 
 # ══════════════════════════════════════════════════════════════════
 # 作业定义
@@ -50,6 +59,8 @@ LESSONS: dict[str, tuple] = {
         R(git.check_own_commits, 1, _label="你自己有提交"),
         R(git.check_message_format, MESSAGE_PATTERN, own_only=True,
           _label="commit message 格式"),
+        R(git.check_message_blacklist, BLACKLIST, own_only=True,
+          _label="message 黑名单"),
     ], {"stop_on_fail": True}),
 
     # ── cpp2 · 函数与参数传递 ──────────────────────────────────
@@ -63,6 +74,8 @@ LESSONS: dict[str, tuple] = {
           "setTorque 签名没改", _label="setTorque 签名没改"),
         R(git.check_message_format, MESSAGE_PATTERN, own_only=True,
           _label="commit message 格式"),
+        R(git.check_message_blacklist, BLACKLIST, own_only=True,
+          _label="message 黑名单"),
     ], {"stop_on_fail": True}),
 
     # ── cpp3 · 枚举、switch 与指针数组 ─────────────────────────
@@ -75,6 +88,8 @@ LESSONS: dict[str, tuple] = {
         R(code.check_tests, PROJECT, ["test_motor"], title="test_motor 没被改坏", _label="test_motor 没被改坏"),
         R(git.check_message_format, MESSAGE_PATTERN, own_only=True,
           _label="commit message 格式"),
+        R(git.check_message_blacklist, BLACKLIST, own_only=True,
+          _label="message 黑名单"),
     ], {"stop_on_fail": True}),
 
     # ── cpp4 · 位运算与结构体布局（CAN 前置）────────────────────
@@ -91,5 +106,7 @@ LESSONS: dict[str, tuple] = {
           "degNormalize180 返回 float", _label="degNormalize180 返回 float"),
         R(git.check_message_format, MESSAGE_PATTERN, own_only=True,
           _label="commit message 格式"),
+        R(git.check_message_blacklist, BLACKLIST, own_only=True,
+          _label="message 黑名单"),
     ], {"stop_on_fail": True}),
 }

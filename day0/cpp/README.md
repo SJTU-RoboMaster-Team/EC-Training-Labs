@@ -77,16 +77,54 @@ undefined reference to `math::limit(float, float, float)'
 
 ---
 
+## 提交约定
+
+四份练习都要求你提交。格式和 Git 那条线是**同一套**：
+
+```text
+type(scope): subject
+```
+
+| 部分 | 写什么 | 例 |
+| --- | --- | --- |
+| `type` | 这次改动属于哪一类 | `feat` / `fix` / `refactor` / `docs` / `test` / `chore` / `tune` / `style` |
+| `scope` | 动的是哪个模块（小写） | `math` / `motor` / `can` / `chassis` |
+| `subject` | 改了什么 —— **别人不看 diff 也能懂** | `clamp the torque before narrowing to int16_t` |
+
+四份练习各一条，参考：
+
+```text
+feat(math): implement limit / loopLimit / degNormalize180 / isNanOrInf
+feat(motor): clamp the torque before narrowing to int16_t
+feat(chassis): implement the mode state machine
+feat(can): parse and pack C620 frames with bit operations
+```
+
+**这两样会被验收：**
+
+1. **格式** —— `type(scope): subject`，type 在上面那八个里
+2. **不是废话** —— `update` / `fix` / `修改` / `调试` 这种单独出现的词不合格。
+   它没说改了什么，半年后的人（包括你自己）从 `git log` 里看不出任何东西
+
+> 验收**只看你自己写的提交**，仓库自带的历史不算。
+> 但反过来，你在别的练习里写过的烂 message 会一直被后面几份查出来 ——
+> 和 Git 线的 HW5 一样：改法是用 `git rebase -i` 改写，或者补一条说明性的新提交。
+>
+> message 的**内容质量**（为什么这么改、有没有讲清动机）不在这条线评 ——
+> 那是 Git 线 **HW5** 的事。这里只卡"格式对、不是废话"。
+
+---
+
 ## 验收标准
 
 只有 PASS / FAIL。每份练习的必修项：
 
 | 练习 | 必修项 |
 | --- | --- |
-| `cpp1` | 能编译 · `test_math` 全过 · 四个函数都有实现 · **四个函数签名没改** · 测试文件未被修改 · 你自己有提交 · commit message 格式 |
-| `cpp2` | 能编译 · `test_motor` 全过 · 测试文件未被修改 · 你自己有提交 · `setTorque` 签名没改 · commit message 格式 |
-| `cpp3` | 能编译 · `test_chassis` 全过 · 测试文件未被修改 · 你自己有提交 · `test_motor` 没被改坏 · commit message 格式 |
-| `cpp4` | 能编译 · `test_can` 全过 · 测试文件未被修改 · 你自己有提交 · **不许出现 `double`** · 浮点返回 `float` · commit message 格式 |
+| `cpp1` | 能编译 · `test_math` 全过 · 四个函数都有实现 · **四个函数签名没改** · 测试文件未被修改 · 你自己有提交 · commit message 格式 · 不是废话 |
+| `cpp2` | 能编译 · `test_motor` 全过 · 测试文件未被修改 · 你自己有提交 · `setTorque` 签名没改 · commit message 格式 · 不是废话 |
+| `cpp3` | 能编译 · `test_chassis` 全过 · 测试文件未被修改 · 你自己有提交 · `test_motor` 没被改坏 · commit message 格式 · 不是废话 |
+| `cpp4` | 能编译 · `test_can` 全过 · 测试文件未被修改 · 你自己有提交 · **不许出现 `double`** · 浮点返回 `float` · commit message 格式 · 不是废话 |
 
 **「签名没改」是怎么验的**：不是读你的代码猜，而是拿一小段 `static_assert`
 和你的头文件一起编译。编译过了就说明契约成立；编译不过时你会看到

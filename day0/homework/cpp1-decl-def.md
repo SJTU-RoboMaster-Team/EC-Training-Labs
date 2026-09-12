@@ -203,6 +203,7 @@ python tools/grade.py cpp1 .
 - [ ] `tests/` 下的测试文件**没有被修改**
 - [ ] 历史里有**你自己写的提交**
 - [ ] commit message 符合 `type(scope): subject`
+- [ ] commit message 不是废话（`update` / `修改` 这类不合格）
 
 ---
 
@@ -223,11 +224,13 @@ python tools/grade.py cpp1 .
 
 | 内容 | 在哪 |
 | --- | --- |
+| commit message 怎么写 | [`../cpp/README.md`](../cpp/README.md)「提交约定」 |
 | 声明 vs 定义、`undefined reference` 根因 | 讲义 **§3** |
 | 真实仓库里的 `loopLimit` / `degNormalize180` | 讲义 **§6.7** |
 | 位运算与整型提升 | 讲义 §6c.1、§6c.4 |
 | 链接错误怎么读 | 讲义 §11.3 |
 | 讲义全文 | [`../cpp/lecture.md`](../cpp/lecture.md) |
+| commit message 怎么写 | [`../cpp/README.md`](../cpp/README.md) 的「提交约定」一节 |
 
 ---
 
