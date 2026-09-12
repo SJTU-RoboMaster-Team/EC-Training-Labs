@@ -96,20 +96,47 @@ def check_todos_done(repo: Repo) -> Result:
     return Result("三个 TODO 都已处理", True, "夹爪速度 / 标定判断 / 工作模式 都改了")
 
 
-def check_style_commit(repo: Repo) -> Result:
-    """存在一个独立的、只做格式化的提交 —— **而且必须是学生自己写的**。
+def check_style_commit(repo: Repo, project: str = PROJECT) -> Result:
+    """存在一个独立的、**改动范围只有 `base/` 的**格式化提交。
 
-    这里必须过滤掉仓库自带的提交：仓库历史里本来就有一条
+    两件事必须同时成立，缺一不可：
+
+    **① 必须是学生自己写的。** 仓库历史里本来就有一条
     `chore(day0): add clang-format config`，不过滤的话学生什么都不做
     也会判过。（这个坑是 verify_chain 抓出来的。）
+
+    **② 范围不能溢出。** 这是 HW4 真正的教学点 —— 顺手把整个仓库格式化，
+    在 reviewer 眼里就是一个几千行的 diff，里面藏着几行真改动，没人看得完。
+    任务书花了整节讲"为什么只格式化 base/"，那这条就得真的检查；
+    否则「文档承诺了，检查没做」，学生会以为随便格式哪儿都一样。
+
+    注意不能用 `check_path_unmodified` 来实现 ②：那条规则比的是"课程最后
+    一次提交时的内容"，而 `app/`、`base/` 本来就是学生在 HW2/HW3 里该改的，
+    拿来比会把正确操作判成违规。这里看的是**这一次提交碰了哪些路径**。
     """
     rx = re.compile(r"^(style|format|chore)(\([a-z0-9_]+\))?!?:\s*.*(format|格式化|clang-format)",
                     re.I)
+    allowed = f"{project}/base/"
+    # 顺手把 .clang-format 本身也调了，是跟格式化同一件事，不算溢出
+    config = {f"{project}/.clang-format", ".clang-format"}
+
+    name = "格式化提交独立且范围在 base/"
+    stray_reports: list[str] = []
     for c in repo.own_commits("HEAD"):
-        if rx.search(c["subject"]):
-            return Result("有独立的格式化提交", True,
-                          f"{c['hash'][:7]} {c['subject'][:40]}")
-    return Result("有独立的格式化提交", False,
+        if not rx.search(c["subject"]):
+            continue
+        stray = sorted(set(f for f in repo.files_changed(c["hash"])
+                           if not f.startswith(allowed) and f not in config))
+        if not stray:
+            return Result(name, True, f"{c['hash'][:7]} {c['subject'][:40]}")
+        stray_reports.append(f"{c['hash'][:7]} 还动了 {', '.join(stray[:3])}"
+                             + ("…" if len(stray) > 3 else ""))
+
+    if stray_reports:
+        return Result(name, False,
+                      "格式化提交改了 base/ 之外的文件：" + "；".join(stray_reports[:2])
+                      + f"。只格式化 {project}/base/，其它改动单独提交")
+    return Result(name, False,
                   "你自己还没有「只做格式化」的提交（message 里要能看出来）")
 
 
@@ -143,7 +170,7 @@ LESSONS: dict[str, tuple[str, list]] = {
     "hw4": ("HW4 · 格式化", [
         R(code.check_formatting, PROJECT, ["base"]),
         R(code.check_tests, PROJECT),
-        R(check_style_commit),
+        R(check_style_commit, PROJECT),
         R(git.check_message_format, MESSAGE_PATTERN),
     ]),
 
@@ -163,7 +190,7 @@ LESSONS: dict[str, tuple[str, list]] = {
         R(code.check_tests, PROJECT),
         # ── 提示（只显示，不影响结论）──
         R(git.check_commit_count, 15),
-        R(git.check_message_length, lo=10, hi=72),
+        R(git.check_message_length, lo=10, hi=72, own_only=True),
         R(git.check_atomic_heuristic, max_top_dirs=3),
         R(git.check_worktree_clean),
         R(git.check_pushed),

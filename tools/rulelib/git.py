@@ -99,11 +99,22 @@ def check_message_blacklist(repo: Repo, words: list[str], rev: str = "HEAD",
 
 
 def check_message_length(repo: Repo, lo: int = 10, hi: int = 72,
-                         rev: str = "HEAD", severity: str = "warn") -> Result:
-    commits = [c for c in repo.commits(rev) if len(c["parents"]) < 2]
+                         rev: str = "HEAD", severity: str = "warn",
+                         own_only: bool = False) -> Result:
+    """commit subject 的长度建议落在 [lo, hi] 里。
+
+    **一定要开 own_only。** 不开的话老师自己历史里那几条短 message 会被算进来，
+    学生看到「3 条不在 10–72」却一条也改不了 ——
+    提示项如果永远修不掉，它就不是提示，是噪音。
+    """
+    src = repo.own_commits(rev) if own_only else repo.commits(rev)
+    commits = [c for c in src if len(c["parents"]) < 2]
+    if not commits:
+        return Result.skip("message 长度", "还没有你自己的提交")
     bad = [c for c in commits if not (lo <= len(c["subject"]) <= hi)]
     if bad:
-        detail = "；".join(f"{c['hash'][:7]} 长度 {len(c['subject'])}" for c in bad[:3])
+        detail = "；".join(f"{c['hash'][:7]} 长度 {len(c['subject'])}「{c['subject'][:20]}」"
+                          for c in bad[:3])
         return Result("message 长度", False, f"{len(bad)} 条不在 {lo}–{hi}：{detail}",
                       severity=severity)
     return Result("message 长度", True, f"都在 {lo}–{hi} 字符内", severity=severity)
