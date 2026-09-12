@@ -44,7 +44,7 @@ struct RawData {
 
 // 从 8 字节反馈帧里解出 RawData。
 //
-// ⚠️ TODO(cpp5)：实现它。
+// ⚠️ TODO(cpp4)：实现它。
 //   要求：
 //     · 字段是**大端**（高字节在前），C620 官方协议规定的
 //     · 用位运算拼，别用 memcpy 把 struct 直接盖上去 ——
@@ -55,7 +55,7 @@ RawData parseRawData(const uint8_t data[8]);
 
 // 把 4 个电机的控制量打包成 8 字节：intensity[i] → out[2i] / out[2i+1]，高字节在前。
 //
-// ⚠️ TODO(cpp5)：实现它。
+// ⚠️ TODO(cpp4)：实现它。
 //   真实代码是这么写的（dji_motor_driver.cpp:72）：
 //       can_tx_data1_[2 * i]     = (motor->intensity_ >> 8);
 //       can_tx_data1_[2 * i + 1] = (motor->intensity_);

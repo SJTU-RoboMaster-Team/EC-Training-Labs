@@ -111,6 +111,38 @@ def _run(cmd: list[str], cwd: Path | None = None, timeout: int = 300):
 # ══════════════════════════════════════════════════════════════════
 
 
+def _shorten(text: str, prefixes: list[str]) -> str:
+    """把绝对路径砍成相对路径 —— 报错里那一长串 `/home/xxx/.../day0/cpp/`
+    对学生的判断没有任何帮助，只会把真正有用的部分挤出屏幕。"""
+    for pfx in prefixes:
+        if pfx:
+            text = text.replace(pfx.rstrip("/") + "/", "")
+            text = text.replace(pfx.rstrip("/"), "")
+    return text
+
+
+def _best_error_lines(text: str, n: int = 2, prefixes: list[str] | None = None) -> str:
+    """从构建输出里挑出最该给学生看的那几行。
+
+    直接取末尾几行会拿到 `gmake[1]: *** Waiting for unfinished jobs....` 这种噪声，
+    学生看了不知道改哪。优先取编译器自己的诊断（含 `error:`），
+    退而求其次取含 error / Error 的行，最后才用末尾几行。
+    """
+    text = _shorten(text or "", prefixes or [])
+    lines = [l.rstrip() for l in text.splitlines() if l.strip()]
+    if not lines:
+        return "（没有任何输出）"
+    # 顺序有讲究：`undefined reference` 最可操作，`collect2: error:` 最没用
+    for key in ("undefined reference", "fatal error:", "error:"):
+        hits = [l for l in lines if key in l]
+        if hits:
+            return " / ".join(h.strip()[:110] for h in hits[:n])
+    hits = [l for l in lines if "rror" in l]
+    if hits:
+        return " / ".join(h.strip()[:110] for h in hits[-n:])
+    return " / ".join(l.strip()[:110] for l in lines[-n:])
+
+
 def check_build(repo: Repo, project: str) -> Result:
     """能在**全新的临时目录**里配置并编译通过。
 
@@ -126,12 +158,12 @@ def check_build(repo: Repo, project: str) -> Result:
     with tempfile.TemporaryDirectory(prefix="ectl-grade-") as td:
         cfg = _run(["cmake", "-S", str(proj), "-B", td])
         if cfg.returncode != 0:
-            tail = (cfg.stderr or cfg.stdout).strip().splitlines()[-2:]
-            return Result("能构建", False, "cmake 配置失败：" + " / ".join(tail))
+            return Result("能构建", False, "cmake 配置失败："
+                          + _best_error_lines(cfg.stderr or cfg.stdout, prefixes=[td, str(proj)]))
         bld = _run(["cmake", "--build", td, "-j"])
         if bld.returncode != 0:
-            tail = (bld.stderr or bld.stdout).strip().splitlines()[-2:]
-            return Result("能构建", False, "编译失败：" + " / ".join(tail))
+            return Result("能构建", False, "编译失败："
+                          + _best_error_lines(bld.stdout + bld.stderr, prefixes=[td, str(proj)]))
     return Result("能构建", True, "cmake 配置 + 编译通过")
 
 
@@ -149,13 +181,13 @@ def check_tests(repo: Repo, project: str, want: list[str] | None = None) -> Resu
     with tempfile.TemporaryDirectory(prefix="ectl-grade-") as td:
         cfg = _run(["cmake", "-S", str(proj), "-B", td])
         if cfg.returncode != 0:
-            tail = (cfg.stderr or cfg.stdout).strip().splitlines()[-3:]
-            return Result("测试全部通过", False, "cmake 配置失败：" + " / ".join(tail))
+            return Result("测试全部通过", False, "cmake 配置失败："
+                          + _best_error_lines(cfg.stderr or cfg.stdout, prefixes=[td, str(proj)]))
 
         bld = _run(["cmake", "--build", td, "-j"])
         if bld.returncode != 0:
-            tail = (bld.stderr or bld.stdout).strip().splitlines()[-3:]
-            return Result("测试全部通过", False, "编译失败：" + " / ".join(tail))
+            return Result("测试全部通过", False, "编译失败："
+                          + _best_error_lines(bld.stdout + bld.stderr, prefixes=[td, str(proj)]))
 
         # 直接跑可执行文件，拿到逐用例的输出（ctest 会把它吞掉）
         #
@@ -448,9 +480,10 @@ def check_no_token(repo: Repo, project: str, tokens: list[str],
     for f in _sources(root, subdirs):
         text = strip_comments_and_strings(f.read_text(encoding="utf-8", errors="replace"))
         for t in tokens:
-            for m in re.finditer(rf"\b{re.escape(t)}\b", text):
-                line = text[:m.start()].count("\n") + 1
-                hits.append(f"{f.relative_to(root).as_posix()}:{line} 出现 {t}")
+            # 同一行出现两次不算两条 —— 学生要看的是"去哪一行改"
+            lines = sorted({text[:m.start()].count("\n") + 1
+                            for m in re.finditer(rf"\b{re.escape(t)}\b", text)})
+            hits += [f"{f.relative_to(root).as_posix()}:{n} 出现 {t}" for n in lines]
     name = f"不出现 {'/'.join(tokens)}"
     if hits:
         detail = "；".join(hits[:3]) + (f"（共 {len(hits)} 处）" if len(hits) > 3 else "")
@@ -494,6 +527,25 @@ def check_answers(repo: Repo, relpath: str, min_per_section: int = 20,
         return Result(name, False,
                       f"第 {', '.join(map(str, short))} 个小节内容太少（<{min_per_section} 字）")
     return Result(name, True, f"{relpath} {want_sections} 个小节共 {sum(filled)} 字")
+
+
+def check_symbols_defined(repo: Repo, project: str, symbols: list[str],
+                          subdirs: list[str]) -> Result:
+    """一批函数是不是**都有定义**。返回一条结果，列出缺哪几个。
+
+    比逐个查更好用：学生一次看到"还差哪几个"，而且规则名可读
+    （逐个查的话，跳过时只能显示函数名 `check_symbol_defined` ×4，看不出区别）。
+    """
+    missing = []
+    for sym in symbols:
+        if not check_symbol_defined(repo, project, sym, subdirs).ok:
+            missing.append(sym)
+    name = f"{len(symbols)} 个函数都有实现"
+    if missing:
+        return Result(name, False,
+                      f"还差 {len(missing)} 个没实现：{', '.join(missing)}"
+                      "（只有声明、没有定义 → undefined reference）")
+    return Result(name, True, f"{', '.join(symbols)} 都在")
 
 
 def check_symbol_defined(repo: Repo, project: str, symbol: str,

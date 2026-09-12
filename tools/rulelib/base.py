@@ -29,22 +29,37 @@ from pathlib import Path
 
 
 class Result:
-    """一条检查的结果。
+    """一条检查的结果。**三种状态**，不是两种。
 
     severity:
       "fail" —— 必修项，不过就是 FAIL
       "warn" —— 提示项，只显示，不影响结论
+
+    skipped:
+      True 表示「因为前面的检查没过，这条没跑」。
+      为什么要有这个状态：学生最常见的情况是**编译都没过**。
+      如果照常往下跑，他会看到十几条 FAIL —— 大部分是编译失败的连带结果，
+      真正要修的只有第一条。跳过时显示成灰色的「跳过」，并说明原因。
+
+      （这个做法来自 CS50 check50：它的 `passed` 是 true / false / null，
+        null 就是"因依赖没过而跳过"。我们只用一个布尔就够，不需要依赖图。）
     """
 
-    def __init__(self, name: str, ok: bool, detail: str = "", severity: str = "fail"):
+    def __init__(self, name: str, ok: bool, detail: str = "", severity: str = "fail",
+                 skipped: bool = False):
         self.name = name
         self.ok = ok
         self.detail = detail
         self.severity = severity
+        self.skipped = skipped
 
     @property
     def blocking(self) -> bool:
-        return self.severity == "fail" and not self.ok
+        return self.severity == "fail" and not self.ok and not self.skipped
+
+    @staticmethod
+    def skip(name: str, why: str = "前面的检查没过") -> "Result":
+        return Result(name, False, f"跳过（{why}）", severity="warn", skipped=True)
 
 
 class RepoError(Exception):
@@ -248,7 +263,9 @@ def R(fn, *args, **kwargs):
     引擎拿到列表后逐个 `rule(repo)` 调用。
     规则函数本身保持 `f(repo, ...) -> Result` 的普通签名，不需要为引擎改形。
     """
+    label = kwargs.pop("_label", None)
     bound = lambda repo: fn(repo, *args, **kwargs)      # noqa: E731
-    # 保留原函数名 —— 规则内部抛异常时，报错信息里要能看出是哪一条
-    bound.__name__ = getattr(fn, "__name__", "rule")
+    # 保留原函数名 —— 规则内部抛异常、或者被跳过时，要能看出是哪一条。
+    # `_label` 可以覆盖它，写成学生看得懂的话。
+    bound.__name__ = label or getattr(fn, "__name__", "rule")
     return bound

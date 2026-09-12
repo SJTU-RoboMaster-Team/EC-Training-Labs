@@ -94,11 +94,11 @@ def load_courses() -> dict[str, tuple[str, str, dict]]:
                   file=sys.stderr)
             continue
         title = getattr(mod, "MODULE_TITLE", info.name)
-        for lesson, (name, rules) in getattr(mod, "LESSONS", {}).items():
+        for lesson, entry in getattr(mod, "LESSONS", {}).items():
             if lesson in out:
                 print(f"!! 作业编号重复：{lesson}（{info.name} 和 {out[lesson][0]}）",
                       file=sys.stderr)
-            out[lesson] = (title, name, rules)
+            out[lesson] = (title, *entry)
     return out
 
 
@@ -139,11 +139,11 @@ class Style:
         if ascii_only:
             self.tl, self.tr, self.bl, self.br = "+", "+", "+", "+"
             self.h, self.v, self.lt, self.rt = "-", "|", "+", "+"
-            self.ok, self.no, self.wa = "[OK]", "[!!]", "[--]"
+            self.ok, self.no, self.wa, self.sk = "[OK]", "[!!]", "[--]", "[  ]"
         else:
             self.tl, self.tr, self.bl, self.br = "┌", "┐", "└", "┘"
             self.h, self.v, self.lt, self.rt = "─", "│", "├", "┤"
-            self.ok, self.no, self.wa = "✅", "❌", "⚠️"
+            self.ok, self.no, self.wa, self.sk = "✅", "❌", "⚠️", "○"
         self.color = color
 
     def _c(self, code: str, s: str) -> str:
@@ -157,6 +157,9 @@ class Style:
 
     def yellow(self, s: str) -> str:
         return self._c("33", s)
+
+    def dim(self, s: str) -> str:
+        return self._c("90", s)
 
     def bold(self, s: str) -> str:
         return self._c("1", s)
@@ -173,7 +176,9 @@ def render(title: str, meta: list[tuple[str, str]],
     lines.append(st.lt + st.h * inner + st.rt)
 
     for res in results:
-        if res.ok:
+        if res.skipped:
+            mark = st.dim(st.sk)          # 跳过：既不是过也不是错，别占注意力
+        elif res.ok:
             mark = st.green(st.ok)
         elif res.severity == "warn":
             mark = st.yellow(st.wa)
@@ -221,27 +226,42 @@ def resolve_repo(target: str, workdir: Path):
     return Repo(target), str(Path(target).resolve())
 
 
-def run_rules(rules: list, repo: Repo) -> list[Result]:
+def run_rules(rules: list, repo: Repo, stop_on_fail: bool = False) -> list[Result]:
     """逐条跑规则。
 
-    **一条规则崩了不该让整次验收崩掉** —— 记成一条错误，继续跑后面的。
+    两件事：
+
+    **① 一条规则崩了不该让整次验收崩掉** —— 记成一条错误，继续跑后面的。
     学生看到的应该是「这条查不了」，而不是一个 Python traceback。
+
+    **② `stop_on_fail=True` 时，第一条必修项没过就停**，剩下的记成「跳过」。
+    这是给「编译 → 测试 → 契约」这种有先后顺序的课用的：
+    编译都没过的时候，后面每一条都会跟着红，而真正要修的只有第一条。
+    默认关闭 —— Git 那类互相独立的检查要全部跑完，学生一次看到所有问题。
     """
     out: list[Result] = []
-    for rule in rules:
+    for i, rule in enumerate(rules):
+        if stop_on_fail and any(r.blocking for r in out):
+            for rest in rules[i:]:
+                out.append(Result.skip(_rule_name(rest)))
+            break
         try:
             res = rule(repo)
         except RepoError:
             raise
         except Exception as e:                       # noqa: BLE001
-            name = getattr(rule, "__name__", None) or getattr(rule, "func", rule)
-            out.append(Result(str(name)[:20], False, f"检查出错：{type(e).__name__}: {e}"))
+            out.append(Result(_rule_name(rule)[:20], False,
+                              f"检查出错：{type(e).__name__}: {e}"))
             continue
         if isinstance(res, list):
             out += res
         else:
             out.append(res)
     return out
+
+
+def _rule_name(rule) -> str:
+    return str(getattr(rule, "__name__", None) or rule)
 
 
 def main() -> int:
@@ -269,8 +289,8 @@ def main() -> int:
 
     if args.list or not args.lesson:
         by_module: dict[str, list[tuple[str, str]]] = {}
-        for lid, (mod, name, _rules) in lessons.items():
-            by_module.setdefault(mod, []).append((lid, name))
+        for lid, entry in lessons.items():
+            by_module.setdefault(entry[0], []).append((lid, entry[1]))
         print("可用的作业：")
         for mod in sorted(by_module):
             print(f"\n  【{mod}】")
@@ -287,7 +307,9 @@ def main() -> int:
         print("!! 还要给一个仓库地址或路径", file=sys.stderr)
         return 2
 
-    module, title, rules = lessons[args.lesson]
+    entry = lessons[args.lesson]
+    module, title, rules = entry[0], entry[1], entry[2]
+    opts = entry[3] if len(entry) > 3 else {}
     if args.clang_format:
         # 引擎不认识 clang-format，也不该认识；规则库自己会读这个变量
         import os
@@ -297,7 +319,7 @@ def main() -> int:
         repo, shown = resolve_repo(args.repo, tmp)
         branch = repo.current_branch()
         # 课程可以声明自己需要 clang-format；没有就让它自己在 PATH 上找
-        results = run_rules(rules, repo)
+        results = run_rules(rules, repo, stop_on_fail=bool(opts.get("stop_on_fail")))
     except RepoError as e:
         print(f"!! {e}", file=sys.stderr)
         return 2
