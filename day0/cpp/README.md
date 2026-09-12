@@ -33,7 +33,7 @@ lecture.md      自学讲义（两万多字，带自测题）
 | 练习 | 改哪个文件 | 做什么 | 先读 |
 | --- | --- | --- | --- |
 | `cpp1` | `base/common/math.cpp` | 实现四个数学函数 | §3、§6.7 |
-| `cpp2` | `base/motor/motor.cpp` | `Motor::setTorque`，注意回调可能为空 | §7b.4 |
+| `cpp2` | `base/motor/motor.cpp` | `Motor::setTorque`：**先限幅、再转整数** | §7b.1–7b.3、§6c.3 |
 | `cpp3` | `app/chassis.cpp` | 状态机 + 模式名 | §8.3、§6b |
 | `cpp4` | `base/motor/dji_motor_driver.cpp` | 解析 / 打包 CAN 报文 | §6c |
 
@@ -83,15 +83,14 @@ undefined reference to `math::limit(float, float, float)'
 
 | 练习 | 必修项 |
 | --- | --- |
-| `cpp1` | 能编译 · `test_math` 全过 · 四个函数都有定义 · **函数签名没改** · commit message 格式 |
-| `cpp2` | 能编译 · `test_motor` 全过 · **回调可以为空**（构造时可以不传 model） · commit message 格式 |
+| `cpp1` | 能编译 · `test_math` 全过 · 四个函数都有实现 · **`loopLimit` 签名没改** · commit message 格式 |
+| `cpp2` | 能编译 · `test_motor` 全过 · **`setTorque` 签名没改** · commit message 格式 |
 | `cpp3` | 能编译 · `test_chassis` 全过 · `test_motor` 没被改坏 · commit message 格式 |
 | `cpp4` | 能编译 · `test_can` 全过 · **不许出现 `double`** · 浮点返回 `float` · commit message 格式 |
 
-**「函数签名没改」和「回调可以为空」是怎么验的**：不是读你的代码猜，
-而是拿一小段 `static_assert` 和你的头文件一起编译。编译过了就说明契约成立，
-编译不过时你会看到 `static_assert` 里写给人的那句话 ——
-**报错信息本身就是讲义**。
+**「签名没改」是怎么验的**：不是读你的代码猜，而是拿一小段 `static_assert`
+和你的头文件一起编译。编译过了就说明契约成立；编译不过时你会看到
+`static_assert` 里写给人的那句话 —— **报错信息本身就是讲义**。
 
 **「不许出现 `double`」不是风格偏好**：战队两个工程都只开单精度 FPU
 （`-mfpu=fpv4-sp-d16` / `-mfpu=fpv5-sp-d16`），`double` 会退化成软件模拟。

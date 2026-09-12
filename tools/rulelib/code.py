@@ -167,26 +167,30 @@ def check_build(repo: Repo, project: str) -> Result:
     return Result("能构建", True, "cmake 配置 + 编译通过")
 
 
-def check_tests(repo: Repo, project: str, want: list[str] | None = None) -> Result:
+def check_tests(repo: Repo, project: str, want: list[str] | None = None,
+                title: str = "测试全部通过") -> Result:
     """在新临时目录里构建并跑测试，要求全部用例通过。
 
     want: 要求必须通过的测试名；None 表示"找到几个就查几个"
+    title: 显示名。一节课里查两次测试时（比如"新的要过 + 旧的没被改坏"）
+           必须给不同的名字，否则输出里两行长得一样，学生分不清哪行是哪行。
+           （注意别把这个参数叫 `name` —— 下面 `for name in want` 会把它冲掉。）
     """
     proj = repo.root / project
     if not (proj / "CMakeLists.txt").is_file():
-        return Result("测试全部通过", False, f"找不到 {project}/CMakeLists.txt")
+        return Result(title, False, f"找不到 {project}/CMakeLists.txt")
     if not find_tool("cmake"):
-        return Result("测试全部通过", False, "本机找不到 cmake，无法验证")
+        return Result(title, False, "本机找不到 cmake，无法验证")
 
     with tempfile.TemporaryDirectory(prefix="ectl-grade-") as td:
         cfg = _run(["cmake", "-S", str(proj), "-B", td])
         if cfg.returncode != 0:
-            return Result("测试全部通过", False, "cmake 配置失败："
+            return Result(title, False, "cmake 配置失败："
                           + _best_error_lines(cfg.stderr or cfg.stdout, prefixes=[td, str(proj)]))
 
         bld = _run(["cmake", "--build", td, "-j"])
         if bld.returncode != 0:
-            return Result("测试全部通过", False, "编译失败："
+            return Result(title, False, "编译失败："
                           + _best_error_lines(bld.stdout + bld.stderr, prefixes=[td, str(proj)]))
 
         # 直接跑可执行文件，拿到逐用例的输出（ctest 会把它吞掉）
@@ -214,7 +218,7 @@ def check_tests(repo: Repo, project: str, want: list[str] | None = None) -> Resu
             results[name] = r.stdout
 
     if not results:
-        return Result("测试全部通过", False, "没有找到任何测试可执行文件")
+        return Result(title, False, "没有找到任何测试可执行文件")
 
     if want is None:
         want = sorted(results)
@@ -237,8 +241,8 @@ def check_tests(repo: Repo, project: str, want: list[str] | None = None) -> Resu
                           + ("：" + missing[0][:60] if missing else ""))
 
     if failed:
-        return Result("测试全部通过", False, "；".join(failed))
-    return Result("测试全部通过", True, " · ".join(summary))
+        return Result(title, False, "；".join(failed))
+    return Result(title, True, " · ".join(summary))
 
 
 # ══════════════════════════════════════════════════════════════════
