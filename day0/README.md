@@ -35,13 +35,13 @@
 
 | 作业 | 标题 | 配什么 | 状态 |
 | --- | --- | --- | --- |
-| HW0 | 环境自检 | 线下当堂 | 任务书待写 |
+| **HW0** | **环境自检** | 线下当堂 | **[已就绪](homework/hw0-env.md)**（不计分） |
 | **HW1** | **把项目跑起来** | CLion / Keil 录播 | **[已就绪](homework/hw1-build.md)** |
 | **HW2** | **修编码器回绕** | C++ 自学 + 录播 | **[已就绪](homework/hw2-encoder.md)** |
 | **HW3** | **编译与链接** | Keil 录播 | **[已就绪](homework/hw3-link.md)** |
 | **HW4** | **格式化** | clang-format 录播 | **[已就绪](homework/hw4-format.md)** |
 | **HW5** | **Git 工作流** | **线下 Git 课件** | **[已就绪](homework/hw5-git.md)** |
-| HW6 | 发一个 PR | — | 不计分 |
+| **HW6** | **发一个 PR** | Day 0 Git 课件 Loop 4 | **[已就绪](homework/hw6-pr.md)**（不计分，交 PR 链接） |
 
 ### C++ 线（cpp1–cpp4）
 
@@ -63,7 +63,7 @@
 ```text
 第一周   HW0（课上）→ HW1 → HW2          同时：读讲义 A 段 → cpp1
 第二周   HW3 → HW4                        同时：讲义 B/C 段 → cpp2 → cpp3
-第三周   HW5 → HW6                        同时：讲义 §6c → cpp4
+第三周   HW5 → HW6                        同时：讲义 §6c 全部（重点 §6c.5–6）→ cpp4
 ```
 
 两条线可以并行，但**别把 cpp 线拖到最后** —— `cpp1` 撞的那条
