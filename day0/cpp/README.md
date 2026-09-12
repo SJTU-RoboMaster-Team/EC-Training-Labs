@@ -52,7 +52,7 @@ lecture.md      自学讲义（两万多字，带自测题）
 
 # ① 构建 + 跑测试
 cd day0/cpp
-cmake -S . -B build -G Ninja      # 没装 Ninja 就去掉 -G Ninja
+cmake -S . -B build               # 配置失败再加 -G（见下）
 cmake --build build
 ctest --test-dir build --output-on-failure
 
@@ -62,9 +62,9 @@ python tools/grade.py cpp1 .
 python tools/grade.py --list      # 看还有哪些练习
 ```
 
-> **Windows 上如果 `cmake` 报 `nmake` 找不到**：那是生成器选错了，
-> 加上 `-G Ninja`（或者装 MinGW 后用 `-G "MinGW Makefiles"`）。
-> 详见 `Tools/02-clion-setup.md`。
+> **配置就失败的话，是生成器没选对**（Windows 上最常见）。
+> 试 `-G Ninja`（装了 Ninja）或 `-G "MinGW Makefiles"`（装了 MinGW）；
+> 换生成器前要先删掉 `build/`。详见 `Tools/02-clion-setup.md` §2。
 
 **第一次构建会失败**，报的是：
 

@@ -40,12 +40,12 @@ LESSONS: dict[str, tuple] = {
     # math.cpp 是空的 → 链接报 undefined reference（HW3 那个概念的复现）
     "cpp1": ("C++01 · 声明与定义", [
         R(code.check_build, PROJECT, _label="能编译"),
-        R(code.check_tests, PROJECT, ["test_math"], title="test_math 全过"),
+        R(code.check_tests, PROJECT, ["test_math"], title="test_math 全过", _label="test_math 全过"),
         R(code.check_symbols_defined, PROJECT,
           ["limit", "loopLimit", "degNormalize180", "isNanOrInf"], ["base"],
           _label="四个函数都有定义"),
         R(code.check_contract, PROJECT, PROBES / "param_const_ref.cpp",
-          "loopLimit 签名没改"),
+          "loopLimit 签名没改", _label="loopLimit 签名没改"),
         R(git.check_message_format, MESSAGE_PATTERN, _label="commit message 格式"),
     ], {"stop_on_fail": True}),
 
@@ -53,9 +53,9 @@ LESSONS: dict[str, tuple] = {
     # 重点：限幅与类型转换的先后顺序（先转再限幅，超大值行为不可预期）
     "cpp2": ("C++02 · 函数与参数传递", [
         R(code.check_build, PROJECT, _label="能编译"),
-        R(code.check_tests, PROJECT, ["test_motor"], title="test_motor 全过"),
+        R(code.check_tests, PROJECT, ["test_motor"], title="test_motor 全过", _label="test_motor 全过"),
         R(code.check_contract, PROJECT, PROBES / "torque_signature.cpp",
-          "setTorque 签名没改"),
+          "setTorque 签名没改", _label="setTorque 签名没改"),
         R(git.check_message_format, MESSAGE_PATTERN, _label="commit message 格式"),
     ], {"stop_on_fail": True}),
 
@@ -63,21 +63,21 @@ LESSONS: dict[str, tuple] = {
     # 依赖 cpp2：Chassis::update 要调 Motor::setTorque
     "cpp3": ("C++03 · 枚举、switch 与指针", [
         R(code.check_build, PROJECT, _label="能编译"),
-        R(code.check_tests, PROJECT, ["test_chassis"], title="test_chassis 全过"),
-        R(code.check_tests, PROJECT, ["test_motor"], title="test_motor 没被改坏"),
+        R(code.check_tests, PROJECT, ["test_chassis"], title="test_chassis 全过", _label="test_chassis 全过"),
+        R(code.check_tests, PROJECT, ["test_motor"], title="test_motor 没被改坏", _label="test_motor 没被改坏"),
         R(git.check_message_format, MESSAGE_PATTERN, _label="commit message 格式"),
     ], {"stop_on_fail": True}),
 
     # ── cpp4 · 位运算与结构体布局（CAN 前置）────────────────────
     "cpp4": ("C++04 · 位运算与 CAN 打包", [
         R(code.check_build, PROJECT, _label="能编译"),
-        R(code.check_tests, PROJECT, ["test_can"], title="test_can 全过"),
+        R(code.check_tests, PROJECT, ["test_can"], title="test_can 全过", _label="test_can 全过"),
         # 两个工程都只开单精度 FPU，double 一次都不该出现
         R(code.check_no_token, PROJECT, ["double"],
           why="两个工程都是单精度 FPU（-mfpu=…-sp-d16），double 是软件模拟",
           _label="不出现 double"),
         R(code.check_contract, PROJECT, PROBES / "float_only.cpp",
-          "degNormalize180 返回 float"),
+          "degNormalize180 返回 float", _label="degNormalize180 返回 float"),
         R(git.check_message_format, MESSAGE_PATTERN, _label="commit message 格式"),
     ], {"stop_on_fail": True}),
 }

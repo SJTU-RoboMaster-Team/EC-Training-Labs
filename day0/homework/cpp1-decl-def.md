@@ -42,9 +42,21 @@ cd EC-Training-Labs/day0/cpp
 先构建一次看看：
 
 ```bash
-cmake -S . -B build -G Ninja      # 没装 Ninja 就去掉 -G Ninja
+cmake -S . -B build
 cmake --build build
 ```
+
+> **如果 cmake 配置就失败了**，多半是生成器没选对（Windows 上最常见）。
+> 换一条试：
+>
+> ```bash
+> cmake -S . -B build -G Ninja                  # 装了 Ninja
+> cmake -S . -B build -G "MinGW Makefiles"      # 装了 MinGW
+> ```
+>
+> 换生成器要**先把 `build/` 删掉**，否则会报
+> `generator does not match the generator used previously`。
+> 详⻅ `Tools/02-clion-setup.md` §2。
 
 **它一定会失败。** 报错长这样：
 
