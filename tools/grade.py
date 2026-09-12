@@ -449,15 +449,20 @@ def check_answers(repo: Repo, relpath: str, min_per_section: int = 20,
 
 
 def check_style_commit(repo: Repo) -> Result:
-    """存在一个独立的、只做格式化的提交。"""
+    """存在一个独立的、只做格式化的提交 —— **而且必须是学生自己写的**。
+
+    这里必须过滤掉仓库自带的提交：仓库历史里本来就有一条
+    `chore(day0): add clang-format config`，不过滤的话学生什么都不做
+    也会判过。
+    """
     rx = re.compile(r"^(style|format|chore)(\([a-z0-9_]+\))?!?:\s*.*(format|格式化|clang-format)",
                     re.I)
-    for c in repo.commits("HEAD"):
+    for c in repo.own_commits("HEAD"):
         if rx.search(c["subject"]):
             return Result("有独立的格式化提交", True,
                           f"{c['hash'][:7]} {c['subject'][:40]}")
     return Result("有独立的格式化提交", False,
-                  "没找到说明「只做格式化」的提交（message 里要能看出来）")
+                  "你自己还没有「只做格式化」的提交（message 里要能看出来）")
 
 
 def grade_hw3(repo: Repo) -> list[Result]:
@@ -472,9 +477,14 @@ def grade_hw3(repo: Repo) -> list[Result]:
 
 
 def grade_hw4(repo: Repo, clang_format: str | None = None) -> list[Result]:
-    """格式化：代码符合 .clang-format + 有独立提交 + 没弄坏功能。"""
+    """格式化：base/ 符合 .clang-format + 有独立提交 + 没弄坏功能。
+
+    只查 base/：那是学生自己在 HW2/HW3 里动过的目录。
+    课程不希望学生顺手把整个仓库格式化 —— 那样 review 看不出真实改动，
+    而且 HW5 里合并队友分支时，整片重排过的文本会把冲突放大到无法收拾。
+    """
     return [
-        check_formatting(repo, ["app", "base", "tests"], explicit=clang_format),
+        check_formatting(repo, ["base"], explicit=clang_format),
         build_and_test(repo),
         check_style_commit(repo),
         gitscore.check_message_format(repo, MESSAGE_PATTERN),

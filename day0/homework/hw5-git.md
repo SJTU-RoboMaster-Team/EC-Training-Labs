@@ -178,7 +178,18 @@ git status
 
 **它们不该进版本库**——每次打开 Keil 都会变，提交进去只会制造无意义的 diff 和冲突。
 
-另外，你前面构建过很多次，`build/` 目录应该也在工作区里。
+> 你可能想问：那 `build/` 呢？构建目录不是更不该进库？
+> 打开 `day0/project/.gitignore` 看一眼——**它已经在里面了**：
+>
+> ```gitignore
+> # 构建目录
+> build/
+> cmake-build-*/
+> ```
+>
+> 所以 `git status` 里从来没出现过 `build/`。
+> **这次的缺口只有 Keil 那几种文件**——一个仓库的 ignore 规则齐不齐，
+> 是被人一条条踩坑补出来的，不是一次写全的。
 
 **打开 `day0/project/.gitignore`，把缺的规则补上：**
 
@@ -187,9 +198,6 @@ git status
 *DebugConfig*
 **/RTE/**
 *uvguix*
-
-# 构建目录
-build/
 ```
 
 **怎么验证：**
@@ -198,11 +206,13 @@ build/
 git status
 ```
 
-**期望：** `mcu/` 下面那几个文件和 `build/` 都从 untracked 列表里**消失了**，
+**期望：** `mcu/` 下面那几个文件从 untracked 列表里**消失了**，
 只剩下那三个 `modified`。
 
 > **这三条 Keil 规则不是我编的**，是真实仓库 `.gitignore` 里的原文。
 > 真实项目里你也会遇到同样的事：先看到一堆陌生文件，再判断哪些该提交。
+> 我们统计过战队几个仓库的合并冲突，**Keil 的 `*.uvprojx` / `*.uvoptx`
+> 占了 15%** —— 就是没 ignore 干净闹的。
 
 ---
 

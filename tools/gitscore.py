@@ -152,6 +152,29 @@ class Repo:
         r = self._run("merge-base", a, b, check=False)
         return r.stdout.strip() or None
 
+    def course_author(self) -> str:
+        """课程仓库自带历史所用的作者邮箱（根提交的作者）。
+
+        用来回答「这条提交是不是学生自己做的」。
+
+        为什么不按分支判断：学生完全可能直接往 main 上提交，也可能把作业
+        放在别的分支上 —— 按分支判断这两种都会判错。
+        为什么按身份判断：仓库自带的那十几个提交都是课程身份提交的，
+        学生用的是自己的 git 身份，这是最直接的依据。
+
+        注意这**不是防作弊**：学生真想把 user.email 改成课程身份也能改。
+        但那已经不是"无意中蒙对"了，而是明确地伪造记录，不值得我们为它
+        加任何机制。
+        """
+        out = self.git("log", "--format=%ae", "--reverse", "--max-parents=0", "HEAD")
+        lines = [l.strip() for l in out.splitlines() if l.strip()]
+        return lines[0] if lines else ""
+
+    def own_commits(self, rev: str = "HEAD") -> list[dict]:
+        """只要学生自己写的提交（按作者身份过滤掉仓库自带历史）。"""
+        course = self.course_author()
+        return [c for c in self.commits(rev) if c["email"] != course]
+
     def files_changed(self, commit_hash: str) -> list[str]:
         out = self.git("show", "--pretty=format:", "--name-only", commit_hash)
         return [f for f in out.splitlines() if f.strip()]

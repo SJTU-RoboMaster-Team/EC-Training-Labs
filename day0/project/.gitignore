@@ -1,3 +1,9 @@
+# 构建目录
+build/
+cmake-build-*/
+__pycache__/
+*.pyc
+
 # 构建产物（按文件类型）
 *.o
 *.elf
