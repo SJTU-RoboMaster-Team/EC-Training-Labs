@@ -12,6 +12,7 @@ enum Mode_e : uint8_t {
   EXCHANGE,
   STORAGE_FRONT,
   STORAGE_BACK,
+  DROP_MODE,
 };
 
 // 电机反馈摘要（共享类型：谁需要新字段都往这里加）
