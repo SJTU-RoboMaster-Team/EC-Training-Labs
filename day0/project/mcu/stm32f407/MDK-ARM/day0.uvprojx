@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
-<!-- Keil MDK 工程文件。这个文件列出了所有源文件、头文件路径和调试配置，
-     任何人在工程里新增一个文件，它就会变一次。 -->
+<!-- Keil MDK 工程文件。
+
+     它列出了这个工程编译哪些源文件、头文件去哪找、烧到哪颗芯片上。
+     注意最后一点：**任何人往工程里新增一个文件，这个文件就会变一次** ——
+     而它每次变都可能和别人改的地方撞上。这是它经常出现在合并冲突里的原因。
+
+     FileType 对照：1 = C 源文件，5 = 头文件，8 = C++ 源文件，2 = 汇编。 -->
 <Project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <SchemaVersion>2.1</SchemaVersion>
   <Targets>
@@ -11,16 +16,36 @@
         <TargetCommonOption>
           <Device>STM32F407VGTx</Device>
           <Vendor>STMicroelectronics</Vendor>
+          <PackID>Keil.STM32F4xx_DFP.2.17.1</PackID>
           <OutputDirectory>.\Objects\</OutputDirectory>
           <ListingPath>.\Listings\</ListingPath>
+          <CreateExecutable>1</CreateExecutable>
+          <OutputName>day0</OutputName>
         </TargetCommonOption>
+        <CommonProperty>
+          <UseCPPCompiler>2</UseCPPCompiler>
+          <Define>STM32F407xx,USE_HAL_DRIVER</Define>
+          <IncludePath>..\..\..\app;..\..\..\base</IncludePath>
+        </CommonProperty>
       </TargetOption>
       <Groups>
         <Group>
           <GroupName>app</GroupName>
           <Files>
-            <File><FileName>control.c</FileName><FileType>1</FileType><FilePath>..\..\..\app\control.c</FilePath></File>
-            <File><FileName>motor_monitor.c</FileName><FileType>1</FileType><FilePath>..\..\..\app\motor_monitor.c</FilePath></File>
+            <File><FileName>control.cpp</FileName><FileType>8</FileType><FilePath>..\..\..\app\control.cpp</FilePath></File>
+            <File><FileName>clamp.cpp</FileName><FileType>8</FileType><FilePath>..\..\..\app\clamp.cpp</FilePath></File>
+            <File><FileName>motor_monitor.cpp</FileName><FileType>8</FileType><FilePath>..\..\..\app\motor_monitor.cpp</FilePath></File>
+            <File><FileName>arm.h</FileName><FileType>5</FileType><FilePath>..\..\..\app\arm.h</FilePath></File>
+            <File><FileName>clamp.h</FileName><FileType>5</FileType><FilePath>..\..\..\app\clamp.h</FilePath></File>
+            <File><FileName>control.h</FileName><FileType>5</FileType><FilePath>..\..\..\app\control.h</FilePath></File>
+            <File><FileName>motor_monitor.h</FileName><FileType>5</FileType><FilePath>..\..\..\app\motor_monitor.h</FilePath></File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>base</GroupName>
+          <Files>
+            <File><FileName>math.h</FileName><FileType>5</FileType><FilePath>..\..\..\base\math.h</FilePath></File>
+            <File><FileName>motor.h</FileName><FileType>5</FileType><FilePath>..\..\..\base\motor.h</FilePath></File>
           </Files>
         </Group>
       </Groups>
