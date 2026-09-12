@@ -1,114 +1,196 @@
 # HW5 · Git 工作流
 
-这是 Day 0 先导课的课下作业 **HW5**。你将在一个小型 C++ 工程上，完整走一遍
-团队协作的闭环：**看清状态 → 整理提交 → 开分支 → 修 bug → 推送 → 同步上游 → 解决冲突 → 验证**。
+前四份作业你一直在**改代码**：跑起来、修 bug、搞懂编译链接、格式化。
+但你每次都是直接 `git commit` 到 `main` 上——**那是一个人在玩**。
 
-> ### ⚠️ 工作目录
+这一份不一样：你要像个团队一样工作。
+
+> **同一件事，两种做法**
 >
-> **下面所有命令，都在 `day0/project/` 这个目录里执行。**
+> | | 你前面做的 | 这一份要做的 |
+> | --- | --- | --- |
+> | 在哪工作 | 直接在 `main` | **开一个任务分支** |
+> | 改动从哪来 | 老师指哪改哪 | **你自己从 TODO 里挑** |
+> | 提交完就完了吗 | 是 | **要推上去、要同步别人的改动** |
+> | 遇到冲突 | 没遇到过 | **解决一次真的** |
 >
-> ```text
-> EC-Training-Labs/          ← 仓库根
-> └── day0/
->     ├── project/           ★ 你在这里面敲命令
->     └── homework/
->         └── hw5-git.md     ← 你正在看的这份
-> ```
->
-> `app/` `base/` `tests/` `tools/` 这些路径都是相对 `day0/project/` 的。
-> 走错目录是这份作业最常见的卡点。
+> Task 9 里你要合并的 `DROP_MODE`，是**老师真的推在上游分支上的代码**，
+> 不是模拟出来的。
 
 ---
 
 ## 学习目标
 
-做完这份作业，你应该能够：
-
-1. 拿到一个不熟悉的仓库时，**先看清状态再动手**（`git status` / `git diff`）
-2. 把一堆杂乱的修改**整理成多个 atomic commit**，并写出别人看得懂的 message
-3. 用**分支**隔离自己的工作，理解"分支只是一个指针"
-4. 面对一个真实的**合并冲突**，读懂双方意图并写出一致的结果
-5. 在提交前用 `grade.py` **自查**，而不是等别人告诉你哪里不合格
+1. 用**任务分支**隔离自己的工作，理解"分支只是一个指针"
+2. 从真实 TODO 出发做改动，**先看清自己改了什么，再决定怎么提交**
+3. 把多个不相关的改动**拆成多个 atomic commit**
+4. 把分支**推送**到自己的仓库
+5. **同步上游**——把别人的改动合进自己的分支
+6. 解决一次**真实的合并冲突**，理解"冲突 ≠ 选一边"
+7. 合并之后**重新验证**（合并成功 ≠ 程序正确）
 
 ---
 
 ## 开始之前
 
-逐条确认。**有一条没打勾就先别往下做**，否则后面一定会卡住。
+逐条确认。**有一条没打勾就先别往下做。**
 
-- [ ] `git --version` 有输出
-- [ ] `git config user.name` 和 `git config user.email` 都有输出（见 Day 0 课件 PreClass）
-- [ ] `ssh -T git@github.com` 返回 `Hi <你的用户名>!`（见 Day 0 课件 PreClass）
-- [ ] 已经 **Fork** 了这个仓库（`EC-Training-Labs`）到你自己的账号
-- [ ] 你的 fork 是 **public**（不是 private）——私有仓库老师没法验收
-- [ ] `cmake --version` 和 `g++ --version` 都有输出
-- [ ] 完成了 HW1：`python tools/build.py` 能跑通，`test_clamp` 通过
+- [ ] 完成了 HW1–HW4，`python tools/build.py` 全绿（`encoder 4/4 · clamp 4/4`）
+- [ ] `git status` 显示工作区干净
+- [ ] `git log --oneline` 能看到你自己 HW2–HW4 的提交
+- [ ] `ssh -T git@github.com` 返回 `Hi <你的用户名>!`
+- [ ] 你的仓库是 **public**
 
 ---
 
 ## 获取代码
 
 ```bash
-# 1. 先 Fork（在 GitHub 网页上点 Fork 按钮），然后：
-git clone git@github.com:<你的用户名>/EC-Training-Labs.git
+cd EC-Training-Labs
+git switch main
+git pull
 
-# 2. 进到工程目录 —— 后面所有命令都在这里
-cd EC-Training-Labs/day0/project
-
-# 3. 把老师的仓库加成第二个远端，后面 Task 9 要用
+# 把老师的仓库加成第二个远端 —— Task 9 要用
 git remote add upstream git@github.com:SJTU-RoboMaster-Team/EC-Training-Labs.git
 git remote -v          # 应该看到 origin（你的）和 upstream（老师的）
 ```
+
+> ⚠️ **工作目录：这一份作业的 Git 命令都在 `EC-Training-Labs/`（仓库根）下敲，
+> 但改代码要进 `day0/project/`。** 每一步都会写清楚。
 
 ---
 
 ## 任务
 
-一共 12 个 Task。**每个 Task 都写了「怎么验证」——做完就验，不要攒到最后。**
-
-### Task 1 · 看清当前状态
-
-**先铺出"你接手时"的工作区。**
-
-你 clone 下来的仓库是**干净**的——因为 `git clone` 只会给你**已提交**的内容。
-但真实情况里，你接手一个目录时它往往是脏的：同事做到一半、构建产物散落一地。
+### Task 1 · 先看清你现在有什么
 
 ```bash
-python tools/setup_worktree.py
+git status
+git log --oneline --graph -8
 ```
 
-这个脚本把那一刻复现出来。**跑完之后，先不要改任何东西，只看：**
+**你应该看到：** 工作区干净，历史里有你 HW2（修编码器）、HW3（抽出 `wrap_angle_deg`）、
+HW4（格式化）的提交。
+
+**怎么验证：** 你能说出"我前面三份作业分别提交了什么"。
+
+> 这三条提交现在都躺在 `main` 上。**从这一份作业开始，不要再往 `main` 上提交了。**
+
+---
+
+### Task 2 · 开一个任务分支
+
+```bash
+git switch -c fix/pickup-todos
+```
+
+分支名格式 `<type>/<what>`，`<type>` 从 `feat` `fix` `refactor` `tune` `exp` 里选。
+
+**怎么验证：**
+
+```bash
+git branch            # 当前分支前面有 *
+git status            # On branch fix/pickup-todos
+```
+
+---
+
+### Task 3 · 找到三个 TODO，读懂它们
+
+有人在这个项目里留了三个待办，散在三个文件里。**它们互不相关**——
+正好用来练"把不同的改动拆开提交"。
+
+```bash
+cd day0/project
+grep -rn "TODO(hw5" app/
+```
+
+**你应该找到三条：**
+
+| 标记 | 文件 | 说的是什么 |
+| --- | --- | --- |
+| `TODO(hw5-a)` | `app/control.cpp` | 夹爪默认速度偏慢，要按当前值的 1.5 倍调 |
+| `TODO(hw5-b)` | `app/clamp.cpp` | 标定期间不该做阻力判断，否则误判成夹住 |
+| `TODO(hw5-c)` | `app/arm.h` | 标定流程需要一个独立的工作模式 `CALIBRATE` |
+
+**怎么验证：** 你能用自己的话说出这三件事分别在解决什么问题。
+
+> 💡 **先读懂再动手。** 你等下要把它们**分三次**提交，
+> 而每条 commit message 都得说清"为什么改"——读不懂就写不出来。
+
+---
+
+### Task 4 · 把这三处都改了（先不要提交）
+
+- **`app/control.cpp`**：把 `kDefaultClampSpeed` 按 TODO 说的调（当前值的 **1.5 倍**）
+- **`app/clamp.cpp`**：让标定期间跳过阻力判断。
+  文件里已经有 `is_calibrating_` 成员和 `beginCalibration()` / `endCalibration()`，用它
+- **`app/arm.h`**：在 `Mode_e` 枚举末尾加上 `CALIBRATE`
+
+改完把三处 `TODO(hw5-*)` 注释删掉——事情做完了，TODO 就该消失。
+
+**怎么验证：**
+
+```bash
+python tools/build.py
+```
+
+- [ ] 构建成功
+- [ ] `test_encoder` 4/4，`test_clamp` 4/4
+
+> ⚠️ 如果 `test_clamp` 挂了，说明你把阻力判断改坏了。
+> 想一想：`is_calibrating_` 默认是 `false`，那"标定期间跳过"该怎么写才不影响正常情况？
+
+---
+
+### Task 5 · 看清你自己改了什么
+
+**这一步不能省。** 提交之前，你必须知道自己在提交什么。
 
 ```bash
 git status
 git diff
 ```
 
-**你应该看到：** 有两个文件被修改（`app/control.cpp` 和 `app/clamp.cpp`），
-还有几个 Git 不认识的文件（在 `mcu/stm32f407/MDK-ARM/` 下面）。
+**你应该看到：** 三个文件被修改，每一个对应一件独立的事。
 
-**怎么验证：** 你能回答这三个问题——
-① 改了哪些文件？② 每个文件改了什么？③ 哪些文件 Git 根本不认识？
+**怎么验证：** 你能回答——
 
-> **顺带记住这一条**：`git clone` 拿到的是**提交历史**，不是某个人的工作区。
-> 正在改、还没提交的东西，不会跟着仓库走。这也是为什么"我本地明明改了"经常是个误会。
+- [ ] 改了哪几个文件？
+- [ ] 每个文件改的是哪一件事？
+- [ ] 这三件事之间有关系吗？
+
+> **关系是"没有关系"。** 调夹爪速度、修标定误判、加一个工作模式——
+> 这是三件独立的事。所以它们应该是**三个提交**，不是一个。
 
 ---
 
-### Task 2 · 把不该提交的东西挡在外面
+### Task 6 · 把生成文件挡在外面
 
-`mcu/stm32f407/MDK-ARM/` 下面那几个文件，和 `build/` 目录，**都不该进版本库**。
-它们是工具生成的，每次打开工程都会变。
+Keil 一打开工程就会生成一堆文件。你现在没开 Keil，用脚本模拟一下：
 
-打开 `.gitignore`，把缺的规则补上。Keil 生成文件对应的规则是：
+```bash
+python tools/make_generated_files.py
+git status
+```
+
+**你应该看到** `mcu/stm32f407/MDK-ARM/` 下面冒出来几个 Git 不认识的文件。
+
+**它们不该进版本库**——每次打开 Keil 都会变，提交进去只会制造无意义的 diff 和冲突。
+
+另外，你前面构建过很多次，`build/` 目录应该也在工作区里。
+
+**打开 `day0/project/.gitignore`，把缺的规则补上：**
 
 ```gitignore
+# Keil 生成文件
 *DebugConfig*
 **/RTE/**
 *uvguix*
-```
 
-`build/` 目录也补一条。
+# 构建目录
+build/
+```
 
 **怎么验证：**
 
@@ -116,228 +198,103 @@ git diff
 git status
 ```
 
-**期望：** `mcu/` 下面那几个文件从 untracked 列表里**消失**了，只剩下两个 `modified`。
+**期望：** `mcu/` 下面那几个文件和 `build/` 都从 untracked 列表里**消失了**，
+只剩下那三个 `modified`。
 
-> **这三条规则不是我编的**，是真实仓库 `.gitignore` 里的原文。
-> 真实项目里你也会遇到同样的事：先看到一堆陌生的 untracked 文件，
-> 然后判断"哪些是生成的、哪些是我该提交的"。
-> 这次我直接把规则给你，是为了让你把注意力放在**做**上，而不是猜。
-
----
-
-### Task 3 · 第一次提交（只提交 control.cpp）
-
-`app/control.cpp` 的修改是**一件事**：有人把夹爪默认速度从 4 调到了 6。
-
-只提交它。**不要 `git add .`**——`clamp.cpp` 是另一件事，下次再提交。
-
-```bash
-git add app/control.cpp
-git diff --staged          # ★ 提交前必须看一遍
-git commit
-```
-
-commit message 要符合 `type(scope): subject`，比如：
-
-```text
-tune(clamp): raise default clamp speed from 4 to 6
-```
-
-**怎么验证：**
-
-```bash
-git log --oneline -1       # 看到你的 message
-git status                 # control.cpp 不在 modified 列表里了，clamp.cpp 还在
-```
+> **这三条 Keil 规则不是我编的**，是真实仓库 `.gitignore` 里的原文。
+> 真实项目里你也会遇到同样的事：先看到一堆陌生文件，再判断哪些该提交。
 
 ---
 
-### Task 4 · 第二次提交（只提交 clamp.cpp）
+### Task 7 · 整理成四个提交
 
-`app/clamp.cpp` 是**另一件事**：标定过程中不应该触发阻力判断。
+现在工作区里有**四件事**：三条 ignore 规则（算一件），和三个代码改动。
+
+**一个一个提交。**
 
 ```bash
-git add app/clamp.cpp
+# ① 先提交 .gitignore
+git add day0/project/.gitignore
 git diff --staged
-git commit
-```
+git commit -m "chore(gitignore): ignore Keil generated files and build output"
 
-message 形如：
-
-```text
-fix(clamp): ignore resistance threshold while calibrating
-```
-
-**怎么验证：** `git status` 显示 `nothing to commit, working tree clean`。
-
-> **为什么分两次提交？** 这就是 **atomic commit**：
-> 一个 commit 只表达一个逻辑变化。如果你把这两件事合成一次提交，
-> 以后想单独回退"调速度"就会连带回退"标定逻辑"。
-> 这两个修改是我**故意放在一起**的——就是为了让你练这个。
-
----
-
-### Task 5 · 开一个任务分支
-
-**从现在开始，所有工作都在分支上做。**
-
-```bash
-git switch -c fix/encoder-wrap
-```
-
-分支名格式：`<type>/<what>`，`<what>` 用小写加短横线。
-`<type>` 从这几个里选：`feat` `fix` `refactor` `tune` `exp`。
-
-**怎么验证：**
-
-```bash
-git branch                 # 当前分支前面有 *
-git status                 # On branch fix/encoder-wrap
-```
-
-> **为什么叫这个名字？** 两个月后有人看到 `fix/encoder-wrap`，
-> 能立刻知道"这个分支在修编码器回绕，修完就能删"。
-> 对比一下 `0429` 或者 `temp`——那种名字两个月后没人知道能不能删。
-
----
-
-### Task 6 · 修 bug
-
-#### 6.1 先看它怎么坏的
-
-```bash
-python tools/build.py
-```
-
-**你应该看到** `test_encoder` 失败，类似：
-
-```text
-  [ ok ] plain forward                got    10.00
-  [ ok ] plain backward               got   -10.00
-  [FAIL] forward across zero          got  -348.00  want    12.00
-  [ ok ] backward across zero         got   -12.00
-test_encoder: 3/4 passed
-```
-
-**注意：4 个用例里只有 1 个失败。** 这不是巧合，是你定位问题的线索。
-
-#### 6.2 想清楚为什么只有一个方向坏
-
-编码器原始角在 `[0, 360)` 之间回绕。求"这一帧走了多少度"时，
-不能直接用 `current - last`——跨零的时候会算出 `±350` 这种数。
-
-代码里有一个函数专门干这件事，在 `base/math.h`。
-
-**先自己想，再看下面。**
-
-<details>
-<summary>想不出来？点开看提示（只说思路，不给答案）</summary>
-
-拿纸算一下这两条路径：
-
-```text
-负向跨零：  5° → 1° → 357° → 353°      实际一共走了 -12°
-正向跨零：  355° → 359° → 3° → 7°      实际一共走了 +12°
-```
-
-看 `1° → 357°` 这一步：`357 - 1 = +356`。
-再看 `359° → 3°` 这一步：`3 - 359 = -356`。
-
-**两个都是 ±356，但一个要变成 -4，另一个要变成 +4。**
-现在的代码只处理了其中一种情况。
-
-**为什么会这样？** 因为 `+356` 和 `-356` 会走进**不同的分支**。
-</details>
-
-#### 6.3 改代码
-
-改 `base/math.h`。改动应该很小（2 行左右）。
-
-**怎么验证：**
-
-```bash
-python tools/build.py
-```
-
-**期望：**
-
-```text
-test_encoder: 4/4 passed
-test_clamp: 4/4 passed
-```
-
-> ⚠️ **`test_clamp` 必须仍然通过。** 它是回归保护——修 bug 不应该弄坏别的功能。
-
----
-
-### Task 7 · 提交修复
-
-```bash
-git diff                    # 先看一遍自己改了什么
-git add base/math.h
+# ② 夹爪速度
+git add day0/project/app/control.cpp
 git diff --staged
-git commit
+git commit -m "tune(clamp): raise default clamp speed by 1.5x"
+
+# ③ 标定期间不判阻力
+git add day0/project/app/clamp.cpp
+git diff --staged
+git commit -m "fix(clamp): skip resistance check while calibrating"
+
+# ④ 加工作模式
+git add day0/project/app/arm.h
+git diff --staged
+git commit -m "feat(arm): add CALIBRATE mode for the calibration flow"
 ```
 
-message 要**说清症状和原因**，比如：
+上面四条只是**参考**——message 要你自己写，但必须说清"改了什么、为什么"。
 
-```text
-fix(motor): normalize encoder delta in both directions
+**怎么验证：**
 
-deg_normalize_180 只处理了 d > 180 的情况，导致正向跨零时
-累计角度一次跳 -350 度。补上 d < -180 的分支。
+```bash
+git log --oneline -5          # 看到你刚做的四条
+git status                    # working tree clean
 ```
 
-**怎么验证：** `git log --oneline` 能看到 3 个提交，且 message 都能看懂。
+> ### 为什么不一次性 `git add .` 然后一个提交？
+>
+> 因为那是**四个逻辑变化**。混在一起的话：
+> - 以后想单独回退"夹爪速度"，会把 ignore 规则和另外两个修复也一起退掉
+> - review 的人看到一坨 diff，说不清你在干什么
+> - `git log` 里那一条 message 根本没法同时描述四件事
+>
+> 这就是讲义里 **atomic commit** 的意思：
+> **一个 commit 只表达一个逻辑变化。**
 
 ---
 
 ### Task 8 · 推送
 
 ```bash
-git push -u origin fix/encoder-wrap
+git push -u origin fix/pickup-todos
 ```
 
 **怎么验证：** 打开 `https://github.com/<你的用户名>/EC-Training-Labs`，
-在分支下拉框里能看到 `fix/encoder-wrap`。
+在分支下拉框里能看到 `fix/pickup-todos`。
+
+> **本地 commit 不是团队备份。** 到这一步为止，你的工作只有你自己看得见。
 
 ---
 
 ### Task 9 · 同步上游（制造一次真实冲突）
 
-**场景**：老师（相当于"另一个队友"）在上游仓库开了一个功能分支 `drop-mode`，
-给机械臂加了一个"存取矿"模式。这个功能和你的标定功能**改到了同一个枚举的末尾**，
-你要把它合进来。
-
-**先做一件事：在你的分支上，给 `app/arm.h` 的模式枚举末尾加一个自己的值。**
-
-```cpp
-enum Mode_e : uint8_t {
-  FOLD,
-  CRUISE,
-  TWIST,
-  EXCHANGE,
-  STORAGE_FRONT,
-  STORAGE_BACK,
-  CALIBRATE,        // ← 你加的，标定模式
-};
-```
-
-提交它：
-
-```text
-feat(arm): add CALIBRATE mode for joint calibration
-```
-
-然后同步上游：
+**场景**：老师在 upstream 上开了一个功能分支 `drop-mode`，给机械臂加了"存取矿"模式。
+这个改动**恰好也动到了 `Mode_e` 枚举的末尾**——和你在 Task 4 里加 `CALIBRATE` 的位置一样。
 
 ```bash
 git fetch upstream
-git log --oneline --graph upstream/drop-mode -5   # 看看老师加了什么
+git log --oneline --graph upstream/drop-mode -5    # 看看老师加了什么
 git merge upstream/drop-mode
 ```
 
-**你应该会看到冲突**（CONFLICT），在 `app/arm.h`，长得像这样：
+**你应该会看到冲突**（`CONFLICT`），在 `app/arm.h`。
+
+```bash
+git status
+```
+
+**怎么验证：** `git status` 显示 `Unmerged paths`，里面是 `app/arm.h`。
+
+> **这不是出错，也不是你哪里做坏了。**
+> 冲突的含义是：**你和对方真的改了同一个地方，Git 没法替你决定。**
+
+---
+
+### Task 10 · 解决冲突
+
+打开 `app/arm.h`，你会看到：
 
 ```cpp
   STORAGE_BACK,
@@ -345,26 +302,16 @@ git merge upstream/drop-mode
   CALIBRATE,
 =======
   DROP_MODE,
->>>>>>> upstream/main
+>>>>>>> upstream/drop-mode
 };
 ```
 
-**怎么验证（这一步之后 `git status` 会显示 unmerged paths）：**
-
-```bash
-git status
-```
-
----
-
-### Task 10 · 解决冲突
-
 **关键认知：冲突不是"选一边"，而是"想清楚两边各自要什么"。**
 
-- 你加 `CALIBRATE` 是为了标定功能
+- 你加 `CALIBRATE` 是为了标定流程
 - 老师加 `DROP_MODE` 是为了存取矿
 
-**这两个都要保留。** 冲突的原因是它们加在了同一行位置，不是它们互相矛盾。
+**这两个都要保留。** 冲突的原因是它们加在了同一行位置，**不是它们互相矛盾**。
 
 编辑 `app/arm.h`，把两边都留下（顺序不限）：
 
@@ -379,8 +326,9 @@ git status
 
 ```bash
 git diff                                    # ★ 确认没有残留的冲突标记
-python tools/build.py                                    # ★ 必须重新验证
-git add app/arm.h
+cd day0/project && python tools/build.py    # ★ 必须重新验证
+cd ../..
+git add day0/project/app/arm.h
 git commit
 ```
 
@@ -389,81 +337,70 @@ merge commit 的 message 要写清**你做了什么决定**。
 **怎么验证：**
 
 ```bash
-git log --oneline --graph -6
+git log --oneline --graph -8
 ```
 
 **期望：** 能看到一个 merge commit（有两条线汇进来）。
 
-> ⚠️ **合并成功 ≠ 程序正确。** Git 只能告诉你"文本层面合并完了"，
-> 它不知道你的枚举值对不对。**所以第 5 步的 `python tools/build.py` 不能省。**
+> ⚠️ **合并成功 ≠ 程序正确。**
+> Git 只能告诉你"文本层面合并完了"，它不知道你枚举值加得对不对。
+> **所以上面的 `tools/build.py` 不能省。**
 
 ---
 
-### Task 11 · 全量验证
+### Task 11 · 验证 + 收尾
 
 ```bash
-python tools/build.py
-```
-
-**期望：**
-
-```text
-test_encoder: 4/4 passed
-test_clamp: 4/4 passed
-100% tests passed, 0 tests failed out of 2
-```
-
----
-
-### Task 12 · 收尾
-
-```bash
+cd day0/project && python tools/build.py && cd ../..
 git push
-git status                    # working tree clean
-git log --oneline --graph -8  # 回头看一遍自己做了什么
+git status
+git log --oneline --graph -10
 ```
 
 ---
 
 ## 自查
 
-**提交前，先自己跑一遍 grader。** 它和老师用的是同一份代码，结果完全一样。
-
 ```bash
-# 在培训材料目录下跑（不是在你的仓库里，也不是在 day0/project 里）
-python grade.py hw5 https://github.com/<你的用户名>/EC-Training-Labs
+# 在你仓库的根目录下（就是 EC-Training-Labs/ 这一层，
+# 不是 day0/project/，也不是 day0/homework/）
+python tools/grade.py hw5 .
 ```
+
+> **`grade.py` 就在你的仓库里**（`tools/grade.py`）。它和老师用的是同一份代码，
+> 所以**你跑出什么结果，老师就验收什么结果**。
 
 **期望看到：**
 
 ```text
 ┌────────────────────────────────────────────────────────────┐
 │ HW5 · Git 工作流                                           │
-│ 仓库 https://github.com/<你的用户名>/EC-Training-Labs      │
-│ 分支 fix/encoder-wrap → main                               │
+│ 仓库 /path/to/EC-Training-Labs                             │
+│ 分支 fix/pickup-todos → main                               │
 ├────────────────────────────────────────────────────────────┤
-│ ✅ 分支命名               存在合规分支：fix/encoder-wrap   │
-│ ✅ 分支上有提交           fix/encoder-wrap 上有 4 个提交   │
-│ ✅ message 格式           19/19 条合规                     │
+│ ✅ 分支命名               存在合规分支：fix/pickup-todos   │
+│ ✅ 分支上有提交           fix/pickup-todos 上有 5 个提交   │
+│ ✅ message 格式           22/22 条合规                     │
 │ ✅ message 黑名单         没有低信息量 message             │
 │ ✅ 无构建产物入库         历史中没有构建产物               │
 │ ✅ 无冲突标记残留         工作区与历史中都没有冲突标记     │
-│ ✅ 测试文件未被修改       day0/project/tests 与最初一致    │
+│ ✅ 测试文件未被修改       day0/project/tests 下的测试与…   │
 │ ✅ 冲突保留双方意图       CALIBRATE 和 DROP_MODE 都在      │
+│ ✅ 三个 TODO 都已处理     速度已调 / 标定判断已加          │
 │ ✅ 发生过合并             1 个 merge commit                │
 │ ✅ 测试全部通过           clamp 4/4 · encoder 4/4          │
-│ ✅ 提交数                 你自己加了 4 个提交（上限 15）   │
+│ ✅ 提交数                 你自己加了 5 个提交（上限 15）   │
 │ ✅ message 长度           都在 10–72 字符内                │
 │ ✅ atomic 启发式          没有明显跨模块的巨型提交         │
 │ ✅ 工作区干净             没有未提交的改动                 │
-│ ✅ 已推送到远端           origin/fix/encoder-wrap 一致     │
+│ ✅ 已推送到远端           origin/fix/pickup-todos 一致     │
 ├────────────────────────────────────────────────────────────┤
 │ 结论   PASS    全部必修项通过                              │
 └────────────────────────────────────────────────────────────┘
 ```
 
-**如果 FAIL**，明细里会写清楚是哪一项没过——**照着改，然后重跑**，
-不要直接提交。
+**如果 FAIL**，明细里会写清楚是哪一项没过——照着改，然后重跑，
+**不要直接提交**。
 
 ---
 
@@ -479,21 +416,22 @@ python grade.py hw5 https://github.com/<你的用户名>/EC-Training-Labs
 ## 评分
 
 **本作业只有 PASS / FAIL 两个结果。** 下面这些**必须全部通过**
-（就是自查输出里的前 10 行）：
+（就是自查输出里的前 11 行）：
 
-- [ ] 存在命名为 `fix/<what>` 或 `tune/<what>` 等合规格式的任务分支
+- [ ] 存在命名为 `fix/<what>` 等合规格式的任务分支
 - [ ] 分支上有实质提交（不是空分支）
-- [ ] 所有 commit message 符合 `type(scope): subject` 或 `type: subject`
+- [ ] 所有 commit message 符合 `type(scope): subject`
       （type ∈ `feat` `fix` `refactor` `docs` `test` `chore` `tune` `style`）
-- [ ] 没有任何 commit message 属于低信息量黑名单（`update` / `modify` / `tmp` / `tuning` / `改` …）
+- [ ] 没有任何 commit message 属于低信息量黑名单（`update` / `modify` / `tmp` / `改` …）
 - [ ] 历史中没有构建产物（`build/` / `*.o` / Keil 生成文件）
 - [ ] 工作区与历史中没有冲突标记残留（`<<<<<<<` / `>>>>>>>`）
 - [ ] `tests/` 下的测试文件**没有被修改**（改测试让它通过 = 任务没完成）
 - [ ] 合并后 `CALIBRATE` 和 `DROP_MODE` 两个枚举值**都存在**
+- [ ] 三个 TODO 都已处理
 - [ ] 历史里有 **merge commit**（合并确实发生过）
 - [ ] `test_encoder` 与 `test_clamp` **全部通过**
 
-**提示项（不影响结论，但会显示出来）：**
+**提示项（不影响结论）：**
 
 - 你自己加的提交数超过 15 个
 - 某条 message 长度不在 10–72 字符
@@ -501,8 +439,8 @@ python grade.py hw5 https://github.com/<你的用户名>/EC-Training-Labs
 - 工作区还有未提交的改动
 - 任务分支还没推送
 
-> **自查输出里的顺序就是上面的顺序** —— 前 10 行全绿才是 PASS。
-> 你不需要记这些，跑一次 `grade.py` 就知道了。
+> **你 HW1–HW4 的提交也会被一起检查。** 如果那时候写过 `update` 这种 message，
+> 这里会挂——回去改好（`git rebase -i` 改写，或者补一条说明性的新提交）。
 
 ---
 
@@ -512,13 +450,13 @@ python grade.py hw5 https://github.com/<你的用户名>/EC-Training-Labs
 | --- | --- | --- |
 | `git push` 报 `Permission denied (publickey)` | SSH key 没配好 | 回 Day 0 课件的 PreClass 章节 |
 | `git push` 报 `rejected` / `fetch first` | 远端有你本地没有的提交 | `git pull` 之后再 push。**不要用 `--force`** |
-| `git status` 里看不到 Keil 那几个文件 | 你已经把它们加进 `.gitignore` 了 | 正常，Task 2 的目标就是这个 |
-| 编译报 `deg_normalize_180` 找不到 | 没 `#include "base/math.h"` | 补上 include |
-| 合并后编译不过 | 冲突标记没删干净 | `git diff` 找出来 |
-| `git switch -c` 说分支已存在 | 之前建过没删 | `git switch fix/encoder-wrap` 切过去 |
+| `git status` 里看不到 Keil 那几个文件 | 已经加进 `.gitignore` 了 | 正常，Task 6 的目标就是这个 |
 | `git merge upstream/drop-mode` 说 no such ref | 没 `git fetch upstream` | 先 fetch |
-| `cmake` 报找不到编译器 | 工具链没装好 | 回 Day 0 课件的环境章节 |
-| 跑了 `git add .`，把构建产物也加进去了 | —— | `git restore --staged build/`，然后确认 `.gitignore` |
+| 合并后编译不过 | 冲突标记没删干净 | `git diff` 搜 `<<<<<<<` |
+| `test_clamp` 挂了 | 阻力判断改坏了 | 检查 `is_calibrating_` 默认值，别把正常路径也挡掉 |
+| 四个改动混成一个提交了 | 提交前用了 `git add .` | `git reset --soft HEAD~1`，然后按 Task 7 分开 add |
+| 分支名不符合格式 | 用了中文或大写 | `git branch -m fix/<新名字>` 改名 |
+| `python` 命令找不到 | Windows 上没勾 Add to PATH | 用 `py` 代替 `python` |
 
 ---
 
@@ -533,9 +471,6 @@ python grade.py hw5 https://github.com/<你的用户名>/EC-Training-Labs
 | Commit message 与分支名的写法 | Day 0 课件「书写约定」一节 |
 | 撤销与恢复 | Day 0 课件 Loop 6 |
 | 完整的命令速查 | Day 0 课件附录 C |
-| 本作业的测评范围与判定项 | 讲师手里的 `lab/DESIGN.md` |
-| Pro Git（中文） | https://git-scm.com/book/zh/v2 |
-| Learn Git Branching（可视化练分支） | https://learngitbranching.js.org/ |
 
 ---
 
@@ -545,3 +480,22 @@ python grade.py hw5 https://github.com/<你的用户名>/EC-Training-Labs
 2. **再跑 `git log --oneline --graph -8`**，看看自己现在在哪
 3. 翻上面的「常见错误」
 4. 还不行就带着**这两条命令的输出**去问，不要只说"我 Git 坏了"
+
+---
+
+## 做完之后
+
+回头看一遍你的 `git log`：
+
+```text
+feat(arm): add CALIBRATE mode for the calibration flow
+fix(clamp): skip resistance check while calibrating
+tune(clamp): raise default clamp speed by 1.5x
+chore(gitignore): ignore Keil generated files and build output
+...
+```
+
+**四条提交，每一条只说一件事，每一条半年后你都看得懂。**
+这就是这门课想让你养成的习惯。
+
+下一步（HW6）是把这套流程再往前推一步：**发一个 PR，让别人 review 你的改动。**
