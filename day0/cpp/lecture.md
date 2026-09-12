@@ -73,7 +73,7 @@ C++ 模块的练习在 **`day0/cpp/`** 这个工程里，编号 `cpp1`–`cpp4`�
 | 练习 | 你要做的事 | 先读哪些节 |
 | --- | --- | --- |
 | `cpp1` 声明与定义 | 实现 `base/common/math.cpp` 里的四个函数 | **§3**、§4、§6.7、§6c |
-| `cpp2` 函数指针与回调 | `Motor::setTorque` —— 回调可能是空的 | **§7b.4**、§7.9、§6b.4 |
+| `cpp2` 函数与参数传递 | `Motor::setTorque` —— **先限幅、再转整数** | **§7b.1–7b.3**、§6c.3 |
 | `cpp3` 枚举、switch 与指针 | 状态机 `Chassis::update` + `modeName` | §8、§6b、§9 |
 | `cpp4` 位运算与 CAN 打包 | 解析 / 打包 C620 报文 | **§6c**、§6c.5、§6c.6 |
 
@@ -1403,7 +1403,9 @@ virtual void handle() = 0;
 是更大的那一半：`math::limit`、`math::degNormalize180`、`crc16`、`parseRawData`……
 数下来有 1052 个函数定义。
 
-这一节讲三件事：函数怎么写、参数怎么传、**函数指针怎么读**。
+这一节讲两件事：**函数怎么写、参数怎么传**。
+函数指针只做"看到了知道是什么"的程度（§7b.4）—— 队里的经验是，
+这东西新人一年也用不上一次，不值得花时间。
 
 ### 7b.1 函数放在哪：三种写法
 
@@ -1464,105 +1466,74 @@ float deadBand(float val, const float& min, const float& max);   // 混合
 ### 7b.3 默认参数
 
 ```cpp
-// wheel-legged/base/motor/motor.h:68（简化了前几个参数，原文见仓库）
+// wheel-legged/base/motor/motor.h:68（简化了前几个参数）
 Motor(const Type_e& type, const float& ratio, const ControlMethod_e& method,
       const PID& ppid, const PID& spid, bool use_kf,
       const KFParam_t& kf_param = KFParam_t(2, 1e4, 1, 0.75, 50),
       float (*model)(const Motor&, const float&, const float&) = nullptr);
 ```
 
-两个默认参数，两种完全不同的含义：
-
-- `kf_param = KFParam_t(2, 1e4, 1, 0.75, 50)` —— **给一个典型值**。
-  不传就用这套卡尔曼参数。
-- `model = nullptr` —— **表示"没有"**。这个电机不接前馈模型。
-  所以后面用它之前必须判空（§7b.4）。
-
-默认参数的规则：
+最后那个 `= nullptr` 是函数指针，跳过（§7b.4）。值得看的是它前面那个：
 
 ```cpp
-void f(int a, int b = 1, int c = 2);   // ✅ 有默认值的必须在右边
+const KFParam_t& kf_param = KFParam_t(2, 1e4, 1, 0.75, 50)
+```
+
+**不传就用这套默认的卡尔曼参数。** 这是默认参数最典型的用法：
+给一个"大多数情况下够用"的值，让调用方只在需要调的时候才写出来。
+
+规则：
+
+```cpp
+void f(int a, int b = 1, int c = 2);   // ✅ 有默认值的必须排在右边
 void g(int a = 1, int b);              // ❌ 编译错误
 ```
 
-### 7b.4 函数指针：读它、存它、用它
+> 真实代码里不传这个参数的调用到处都是 —— 也就是绝大多数电机
+> 用的都是这套默认值。**只有真去调过参的电机才写出来。**
+> 这本身就是一种文档：看到有人传了 `kf_param`，就知道这台电机被单独调过。
 
-这是本节的重点，因为**真实仓库里随处都是**（83 处）。
+### 7b.4 函数指针：看到可以跳过
 
-**第一步：把声明读出来。**
-
-```cpp
-float (*model)(const Motor&, const float&, const float&);
-```
-
-从变量名 `model` 往里看：`(*model)` 说明 `model` 是个指针；
-后面紧跟 `(...)` 说明它指向函数；最前面 `float` 是那个函数的返回类型。
-
-```text
-float  (*model)  (const Motor&, const float&, const float&)
-  ↑       ↑                    ↑
-返回类型  变量名（是指针）      参数列表
-```
-
-对照着看两个容易混的：
+你会在真实代码里看到这种写法：
 
 ```cpp
-float (*f)(float);   // f 是指针 → 指向「收 float 返回 float」的函数
-float* g(float);     // g 是函数 → 收 float，返回「float 的指针」
-float* (*h)(float);  // h 是指针 → 指向「收 float 返回 float*」的函数
-```
+// wheel-legged/base/motor/motor.h:70（构造函数的一个默认参数）
+float (*model)(const Motor&, const float&, const float&) = nullptr;
 
-**第二步：看它怎么被存进类里。**
-
-```cpp
-// wheel-legged/base/motor/motor.h:183
-// 电机输出模型
+// 同文件 :183（存进成员）
 float (*model_)(const Motor&, const float&, const float&);
 ```
 
-尾部的下划线是队里的命名习惯（成员变量加 `_`），和函数指针无关。
-
-**第三步：看它怎么被调用。**
-
 ```cpp
-// wheel-legged/base/motor/motor.cpp:153（简化了上下文）
+// wheel-legged/base/motor/motor.cpp:153（调用前先判空）
 if (model_ != nullptr) {
-  // 有电机输出模型-力矩控制
   intensity_float_ =
       model_(*this, control_data_.target_torque, control_data_.fdb_speed);
-} else {
-  // 无电机输出模型-直接设置控制量
-  ...
 }
 ```
 
-三件事：
+**这是什么**：把"一段以后要调用的代码"存起来，运行期再调。
+叫**回调**。这里存的是"电机输出模型"——不同型号的电机可以用不同的换算方式。
 
-1. **`if (model_ != nullptr)` 不是可选的**。因为构造函数给了 `= nullptr` 默认值，
-   "没有模型"是完全合法的状态。不判空直接调 → 段错误。
-2. **调用它的写法和调普通函数一模一样**：`model_(a, b, c)`。
-   不需要 `(*model_)(a, b, c)`（那样写也对，但没人这么写）。
-3. **`*this`** 把当前电机对象传进去 —— 模型函数需要读电机的状态（§7.8）。
+**你不需要会写它。** 队里带了一年的队员反馈：这东西看到了也不会去管它，
+因为它只在"要给不同型号挂不同换算方式"这种场合才出现，
+而那种场合是驱动层作者一次性写好的，业务代码里只会**调用**它。
 
-**第四步：回调是同一个东西的另一个名字。**
+所以：
 
-```cpp
-// wheel-legged/base/common/bool_input.h:37（成员：一堆回调）
-void (*inputCallback)(bool);      // 输入状态回调
-void (*inputEdgeCallback)(bool);  // 输入边沿回调
-void (*cmdStartCallback)(void);      // 指令开始回调
-void (*cmdFinishCallback)(uint8_t);  // 指令结束回调
-```
+| 你要做的 | 不用做的 |
+| --- | --- |
+| 看到 `float (*name)(...)` 知道"这是个函数指针" | 背它的声明怎么读 |
+| 看到 `if (p != nullptr)` 知道是在判空 | 自己设计回调接口 |
+| 需要挂回调时，照着旁边的代码抄 | 理解它的类型推导规则 |
 
-```cpp
-// wheel-legged/base/common/bool_input.cpp:47（调用：每处都判空）
-if (inputCallback != nullptr) {
-  inputCallback(input_);
-}
-```
-
-把一个函数"存起来以后调"，就叫**回调**。战队代码里用它的场景：
-按键状态变化、指令开始/结束、CAN 收到帧、串口空闲中断。
+> **为什么我们不用它做练习**：一个知识点值不值得进培训，看的是
+> "新人多久会真的需要它"。函数指针在战队自己的代码里 83 处，
+> 但**几乎全在驱动层和底层工具里**，业务代码（`app/`）基本碰不到。
+> 相比之下指针本身（2188 处）和位运算（349 处）是天天见的。
+>
+> 同样的判断也用在别处：模板（§11b）、虚函数（§7.10）都是"看得懂就行"。
 
 ### 7b.5 数组参数会退化成指针
 
@@ -1580,17 +1551,12 @@ void f(Motor  arr[11]) { sizeof(arr); }   // 同样是 4
 - 传数组给函数 → 要么额外传一个长度参数，要么用引用保留类型：`void f(Motor (&arr)[11])`
 - 真实代码的做法是**额外传长度**：`Chassis(motor::Motor* wheels, int wheel_count, ...)`
 
-### 7b.6 为什么不用 `std::function`
+### 7b.6 为什么固件里的回调都是裸函数指针
 
-`std::function<void(int)>` 能存 lambda、函数对象、函数指针，看起来更方便。
-但战队代码里 **0 处使用**，原因很实际：
+`std::function` 更方便（能存 lambda、函数对象），但战队代码里 0 处使用：
+它会动态分配、体积大、拖进一批模板实例化。固件里一律用裸函数指针。
 
-- 它可能**动态分配**（捕获太多时），固件里不能接受（§12.4）
-- 它比裸函数指针大得多（通常 32 字节起），每个对象都背上这个开销
-- 它会拖进一批模板实例化，flash 占用上去
-
-所以固件里的回调一律是**裸函数指针**。要绑额外数据怎么办？
-把那个对象指针一起传进去 —— 就是 `model_(*this, ...)` 里那个 `*this` 的作用。
+**你只需要知道这个结论**，不需要会写。
 
 ### 7b.7 lambda：看得懂就行
 
@@ -2007,122 +1973,61 @@ Makefile 的 `SRCS`。**新建源文件之后，第一件事是把它登记到�
 
 ---
 
-## 11b. 模板：看得懂就行
+## 11b. 模板：知道有这回事就行
 
-模板在战队代码里出现 **249 次** —— 比你可能预期的多。
-但你**不需要会写**，需要的是**看到不跳过**。
+模板在战队代码里出现 **249 次**，但**大部分在库和底层工具里**
+（`lib/arm_math/`、矩阵、滤波器）。业务代码里你基本是**调库**，
+不是写库。所以这一节的目标很低：**看到不慌，知道去哪儿查。**
 
-### 11b.1 类型参数：`template <typename T>`
+### 11b.1 一眼看懂就够
 
 ```cpp
 template <typename T>
-T maxOf(T a, T b) {
-  return (a > b) ? a : b;
-}
+T maxOf(T a, T b) { return (a > b) ? a : b; }
 
-maxOf(1, 2);        // 编译器生成 maxOf<int>
-maxOf(1.0f, 2.0f);  // 编译器生成 maxOf<float>
+maxOf(1, 2);         // 编译器按 int 生成一份
+maxOf(1.0f, 2.0f);   // 编译器按 float 再生成一份
 ```
 
-编译器**按你用的类型各生成一份代码**。所以：
+**一句话**：模板是"类型也是参数"，编译器按你用的类型各生成一份代码。
+用得越多，编译出来的代码越大 —— 这是它在固件里要被克制使用的原因。
 
-- 源码里只有一个函数，编译出来可能有十几份
-- 用得越多，flash 越大（§12.5 提过"模板要用得克制"）
-- 出了错，报错信息会变得很长 —— 因为错误发生在"实例化之后"
-
-### 11b.2 非类型参数：值也能当参数
-
-这是战队代码里**最主流的模板写法**，而且很多教程不讲：
+### 11b.2 你会看到的一种写法
 
 ```cpp
-// wheel-legged/base/common/matrix.h:17（真实代码，原样抄）
+// wheel-legged/base/common/matrix.h:17（原样抄）
 template <int n_row, int n_col>
 class Matrix_f32 {
-  template <int n_row_, int n_col_>
-  friend class Matrix_f32;
-
+  ...
  protected:
   arm_matrix_instance_f32 inst_;
   float32_t data_[n_row][n_col];
-  ...
 ```
 
-看第 24 行：`float32_t data_[n_row][n_col];`
+**值也能当模板参数**，所以数组维度可以写成 `data_[n_row][n_col]`，
+`Matrix_f32<6, 6>` 和 `Matrix_f32<6, 1>` 是两个不同的类型。
 
-**数组的维度是模板参数。** 这意味着：
+你要知道的只有两点：
+
+1. **尖括号里的东西是编译期定死的**，所以不占运行期开销、也不用动态分配。
+2. **维度对不上会编译不过**（`Matrix_f32<6,6>` 乘 `Matrix_f32<3,1>`），
+   这是好事 —— 错误提前暴露了。
+
+> **不用学怎么定义模板。** 你是调库的人：`Matrix_f32<6, 6> J;` 会用就行。
+> 真到了要自己写模板的那天（多半是在驱动层或算法库），
+> 那时候你已经有足够的 C++ 底子，看文档就会了。
+
+### 11b.3 这些看到就跳过
 
 ```cpp
-Matrix_f32<6, 6> J;      // 一个 6x6 的矩阵，data_ 是 float[6][6]
-Matrix_f32<6, 1> v;      // 一个 6x1 的向量，data_ 是 float[6][1]
+std::void_t<...>                       // SFINAE 的辅助工具
+std::enable_if<...>                    // 条件启用某个重载
+std::decay_t<...>                      // 类型退化
+template<typename, typename = void>    // 偏特化的经典形状
 ```
 
-`n_row` / `n_col` 在编译期就是已知常量，所以：
-
-- **不需要动态分配** —— 数组大小编译期定死（这正是固件要的，§12.4）
-- 编译器能做完整的循环展开和常量折叠
-- 矩阵乘法的维度检查发生在**编译期**：
-
-```cpp
-// matrix.h:47（真实代码）
-template <int n_col2>
-Matrix_f32<n_row, n_col2> operator*(
-    const Matrix_f32<n_col, n_col2>& mat) const;
-```
-
-`Matrix_f32<6,6> * Matrix_f32<6,1>` 合法，`Matrix_f32<6,6> * Matrix_f32<3,1>`
-**编译不过** —— 因为 `n_col`（6）对不上 3。维度错误不用等到跑起来才发现。
-
-> 这就是模板在嵌入式里的价值：**把运行期的开销挪到编译期**。
-> 代价是代码体积和报错可读性。
-
-### 11b.3 真实代码里的其他非类型参数
-
-```cpp
-template <BoardRole board>              // 41 处：用"哪块板子"当参数
-template <int n_row, int n_col>         // 20 处：矩阵维度
-template <unsigned int _rows, unsigned int _cols>   // 8 处
-template <unsigned int _dim>            // 6 处
-```
-
-`BoardRole board` 这类用法在做**板级特化**：同一套控制代码，
-`MasterArm` 和 `SlaveArm` 各实例化一份，`board` 不同则内部行为不同 ——
-但**运行时没有 if 判断**，因为编译期就分好了。
-
-### 11b.4 为什么模板的实现必须写在头文件里
-
-这是 §11.5 和 §4 那条 ODR 规则的延伸：
-
-```cpp
-// matrix.h —— 实现也在头文件里（真实代码就是这样）
-template <int n_row, int n_col>
-Matrix_f32<n_row, n_col> Matrix_f32<n_row, n_col>::operator+(
-    const Matrix_f32<n_row, n_col>& mat) const {
-  ...
-}
-```
-
-**因为编译器必须在"看到用法"的地方才能生成代码。**
-如果实现放在 `matrix.cpp` 里，别的 `.cpp` 里写 `Matrix_f32<6,6> a;` 时，
-编译器手里只有声明，生成不出 `operator+<6,6>`，
-链接器就报 `undefined reference` —— 和 §3.5 那条一模一样的机制。
-
-模板的符号在符号表里是**弱符号 `W`**（§11.3 那张表），
-多个 TU 各自实例化一份，链接器合并成一份。这就是为什么它不违反 ODR。
-
-### 11b.5 你不需要会写的部分
-
-下面这些**看到就跳过**，不影响你读懂战队代码：
-
-```cpp
-std::void_t<...>            // SFINAE 的辅助工具
-std::enable_if<...>         // 条件启用某个重载
-std::decay_t<...>           // 类型退化
-template<typename, typename = void>   // 偏特化的经典形状
-```
-
-它们在真实代码里一共出现不到 10 次，都在底层工具库里。
-你要做的是**认得出来"这里是高级技巧"**，然后去找写得清楚的注释或文档，
-而不是硬读。
+真实代码里一共不到 10 处，都在底层工具库里。
+**认得出来"这是高级技巧"就够了**，去找写得清楚的注释或文档，别硬读。
 
 ---
 
@@ -2410,40 +2315,23 @@ const bool found = (it != kAngles.end());
 
 ---
 
-## 14. `extern "C"`：读 C 代码时遇到的东西
+## 14. `extern "C"`：C 和 C++ 混编
 
-这一节是为了**读**，不是为了写。Keil 工程、STM32 HAL、CAN 驱动、FreeRTOS 都是 C 写的，
-它们的头文件里会有：
+固件工程必然是混编的：**HAL 是 C，业务代码是 C++**。
+这一节讲清楚它们怎么接上 —— 你不需要写，但需要看懂。
 
-```cpp
-// 示意（不在 day0/project 里）
-#ifdef __cplusplus
-extern "C" {
-#endif
+### 14.1 它解决什么问题
 
-void HAL_GPIO_WritePin(void* port, uint16_t pin, int state);
+C++ 编译器会给函数名加料。同一个 `void led_on()`，在 `nm` 里可能变成
+`_Z6led_onv`（§11.3 那张符号表里见过这种名字）。
+C 编译器不会加料，它就叫 `led_on`。
 
-#ifdef __cplusplus
-}
-#endif
-```
+于是：**C 文件里调用一个 C++ 实现的函数，链接器找不到那个名字** ——
+一个和 §3.5 一模一样的 `undefined reference`，只是原因不同。
 
-原因是 C++ 有函数重载，编译器会把参数类型编进符号名（name mangling）；
-C 没有，符号名就是函数名。`extern "C"` 告诉 C++ 编译器"这个函数按 C 的规则起名字"。
-**没有它，链接时会出现"函数明明在，就是 undefined reference"** ——
-因为你在找 `HAL_GPIO_WritePin`，而编译器生成的是 `_Z18HAL_GPIO_WritePinPvti`。
+`extern "C"` 就是在说："这个名字按 C 的规则来，别加料。"
 
-用 `nm` 对比一下就很直观：工程里 `Clamp::update(float, float)` 的符号是
-`_ZN5Clamp6updateEff`（`nm` 不带 `-C` 时看到的原始名字），而 `printf` 就是 `printf`。
-C++ 编出来的名字长，C 的短。
-
-如果你要写一个被 C 代码调用的函数（比如某个 HAL 回调），记得加 `extern "C"`。
-
----
-
-### 14.1 真实仓库里长什么样
-
-战队代码里 `extern "C"` 用得比你想的多，因为**业务代码是 C++，HAL 是 C**。
+### 14.2 真实仓库里长什么样
 
 ```cpp
 // dual-arm/MasterArm/interface/callback.h:9（原样抄，省略了中间的声明）
@@ -2460,10 +2348,6 @@ extern "C" {
 // UART空闲中断处理，在stm32f4xx_it.c的USARTx_IRQHandler()函数中调用
 void User_UART_IdleHandler(UART_HandleTypeDef* huart);
 
-// USB CDC. Called in usbd_cdc_if CDC_Receive_FS()
-// USB接收回调函数，在usbd_cdc_if的CDC_Receive_FS()函数中调用
-void User_USB_CDC_RxMsgCallback(uint8_t* Buf, uint32_t* Len);
-
 #ifdef __cplusplus
 }
 #endif
@@ -2471,24 +2355,30 @@ void User_USB_CDC_RxMsgCallback(uint8_t* Buf, uint32_t* Len);
 #endif  // CALLBACK_H
 ```
 
-**为什么需要它**：中断服务函数在 C 文件里（`stm32f4xx_it.c`），
-实现在 C++ 文件里（`callback.cpp`）。C 编译器不知道 C++ 的**名字修饰**
-（name mangling，§11.3 提过：`nm` 里那个 `_Z14wrap_angle_degf`），
-所以必须在 C++ 这边声明"这个名字按 C 的规则来"。
+**为什么长这样**：中断服务函数写在 C 文件里（`stm32f4xx_it.c`），
+实现在 C++ 文件里（`callback.cpp`）。中间这个头文件是两边的接缝。
 
-三个可迁移的观察：
+三个值得注意的地方：
 
-1. **`interface/` 这一层就是干这个的** —— 它是 C 和 C++ 的接缝。
-   `dual-arm` 仓库的分层文档里写得很清楚：
-   `interface/` 放 RTOS 任务入口、全局对象装配、中断回调分发。
-2. **`#ifdef __cplusplus` 的包裹位置**很有意思：它包住了 `#include "usart.h"`。
-   因为 `usart.h` 是 HAL 的头文件（C 的），从 C++ 里 include 它要按 C 规则处理。
-3. **每个函数上面的注释都写了"谁调用它"**（`Called in stm32f4xx_it.c ...`）。
-   这是这套代码里最值得学的习惯：中断回调散落在各处，
+1. **`#ifdef __cplusplus` 的包裹**：只有 C++ 编译器看到 `extern "C" {`，
+   C 编译器看到的是空行。**同一个头文件两边都能 include** —— 这是关键。
+2. **它连 `#include "usart.h"` 都包进去了**。因为 `usart.h` 是 HAL 的
+   C 头文件，从 C++ 里 include 它也要按 C 规则处理。
+3. **每个函数注释都写了"谁调用它"**（`Called in stm32f4xx_it.c ...`）。
+   这是这套代码里最值得学的习惯：中断回调散落各处，
    不写清楚调用点，半年后没人找得到。
 
-> 你现在的练习工程没有 `interface/` 这一层（它依赖具体的 HAL）。
-> 但你以后一定会在这一层写代码 —— 那时你会重新回来看这一节。
+### 14.3 你该记住的
+
+| | |
+| --- | --- |
+| **在哪见到它** | 所有 `interface/` 下的头文件 —— 那一层就是 C 和 C++ 的接缝 |
+| **看到怎么办** | 知道"这里在给 C 代码提供入口"，具体函数照常读 |
+| **要写吗** | 现在不用。等你在 `interface/` 里加中断回调时，照着旁边的抄 |
+| **写错了会怎样** | `undefined reference to led_on`（而不是 `_Z6led_onv`）—— 名字对不上 |
+
+> 你现在这个练习工程没有 `interface/` 这一层（它依赖具体的 HAL）。
+> 但你以后一定会在这一层写代码 —— 那时回来看看这一节就够。
 
 ---
 
@@ -2499,7 +2389,7 @@ void User_USB_CDC_RxMsgCallback(uint8_t* Buf, uint32_t* Len);
 | 练习 | 文件 | 你要做的 | 用到的知识 |
 | --- | --- | --- | --- |
 | **cpp1** | `base/common/math.cpp` | 实现 `limit` / `loopLimit` / `degNormalize180` / `isNanOrInf` | §3 声明与定义、§4 inline、§6.7（真实仓库的同一段代码）、§6c.4 |
-| **cpp2** | `base/motor/motor.cpp` | `Motor::setTorque`：**回调可能是 `nullptr`** | **§7b.4**、§7.9、§6b.4、§6c.3（`float`→`int16_t` 的窄化） |
+| **cpp2** | `base/motor/motor.cpp` | `Motor::setTorque`：**先限幅、再窄化** | **§7b.1–7b.3**（参数怎么传）、§6c.3（类型转换） |
 | **cpp3** | `app/chassis.cpp` | `modeName` 与 `Chassis::update` 状态机 | §8.3 `switch` 覆盖枚举、§6b（指针数组）、§9 |
 | **cpp4** | `base/motor/dji_motor_driver.cpp` | 解析 / 打包 C620 的 8 字节报文 | **§6c** 全部、§6c.5 定长类型、§6c.6 结构体布局 |
 

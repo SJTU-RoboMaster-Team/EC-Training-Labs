@@ -57,7 +57,9 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+import os
 import pkgutil
+import re
 import shutil
 import subprocess
 import sys
@@ -68,7 +70,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from rulelib.base import Repo, RepoError, Result  # noqa: E402
+from rulelib.base import Repo, RepoError, Result, enable_vt  # noqa: E402
 
 # ══════════════════════════════════════════════════════════════════
 # 课程加载
@@ -108,9 +110,14 @@ def load_courses() -> dict[str, tuple[str, str, dict]]:
 
 BOX_W = 62
 
+# ANSI 颜色/加粗的转义序列。**算宽度时必须先去掉它** ——
+# 否则 `\033[31m` 会被当成 5 个可见字符，整个框线全歪。
+ANSI = re.compile(r"\033\[[0-9;]*m")
+
 
 def _w(s: str) -> int:
-    """字符串在终端里的显示宽度（CJK 算 2 列）。"""
+    """字符串在终端里的显示宽度（CJK 算 2 列，ANSI 转义不算）。"""
+    s = ANSI.sub("", s)
     return sum(2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in s)
 
 
@@ -169,10 +176,15 @@ def render(title: str, meta: list[tuple[str, str]],
            results: list[Result], st: Style) -> str:
     inner = BOX_W - 2
     lines: list[str] = []
+    # 所有宽度都用 _w() 算（CJK 算 2 列、ANSI 不算）。
+    # **不能用 len()** —— "仓库" 是 2 个字符但占 4 列，用了 len() 框线就会歪。
+    LIMIT = inner - 1                       # 内容区可用宽度
+
     lines.append(st.tl + st.h * inner + st.tr)
-    lines.append(st.v + " " + _pad(st.bold(_clip(title, inner - 1)), inner - 1) + st.v)
+    lines.append(st.v + " " + _pad(st.bold(_clip(title, LIMIT)), LIMIT) + st.v)
     for k, v in meta:
-        lines.append(st.v + " " + _pad(f"{k} {_clip(v, inner - len(k) - 3)}", inner - 1) + st.v)
+        lines.append(st.v + " "
+                     + _pad(f"{k} {_clip(v, LIMIT - _w(k) - 1)}", LIMIT) + st.v)
     lines.append(st.lt + st.h * inner + st.rt)
 
     for res in results:
@@ -185,8 +197,11 @@ def render(title: str, meta: list[tuple[str, str]],
         else:
             mark = st.red(st.no)
         name = _clip(res.name, 22)
-        line = f"{mark} {_pad(name, 22)} {_clip(res.detail, inner - 27)}"
-        lines.append(st.v + " " + _pad(line, inner - 1) + st.v)
+        # 明细的预算要从**真实标记宽度**倒推：
+        #   `✅` 占 2 列、`[OK]` 占 4 列（--ascii 模式），差这 2 列就会顶破右边框
+        budget = LIMIT - _w(mark) - 1 - 22 - 1
+        line = f"{mark} {_pad(name, 22)} {_clip(res.detail, max(8, budget))}"
+        lines.append(st.v + " " + _pad(line, LIMIT) + st.v)
 
     lines.append(st.lt + st.h * inner + st.rt)
 
@@ -198,7 +213,10 @@ def render(title: str, meta: list[tuple[str, str]],
     else:
         warn_n = sum(1 for r in results if r.severity == "warn" and not r.ok)
         note = "全部必修项通过" + (f"（{warn_n} 项提示）" if warn_n else "")
-    lines.append(st.v + " " + _pad(f"结论   {vt}    {note}", inner - 1) + st.v)
+    head = f"结论   {vt}    "
+    lines.append(st.v + " "
+                 + _pad(head + _clip(note, LIMIT - _w(head)),
+                        LIMIT) + st.v)
     lines.append(st.bl + st.h * inner + st.br)
 
     return "\n".join(lines)
@@ -211,7 +229,6 @@ def render(title: str, meta: list[tuple[str, str]],
 
 def resolve_repo(target: str, workdir: Path):
     """把命令行参数变成 (Repo, 显示用的地址)。"""
-    import re
     if re.match(r"^(https?://|git@)", target):
         dest = workdir / "repo"
         r = subprocess.run(["git", "clone", "--quiet", target, str(dest)],
@@ -279,7 +296,10 @@ def main() -> int:
     ap.add_argument("repo", nargs="?", help="仓库地址（URL）或本地路径")
     ap.add_argument("--json", action="store_true", help="输出 JSON")
     ap.add_argument("--ascii", action="store_true", help="用纯 ASCII 边框")
-    ap.add_argument("--no-color", action="store_true", help="不要颜色")
+    ap.add_argument("--no-color", action="store_true",
+                    help="不要颜色（重定向到文件时自动关闭）")
+    ap.add_argument("--color", action="store_true",
+                    help="强制上色（终端检测不出来时用）")
     ap.add_argument("--list", action="store_true", help="列出所有作业")
     ap.add_argument("--clang-format", dest="clang_format", default=None,
                     help="clang-format 可执行文件路径（没装在 PATH 上时用）")
@@ -340,7 +360,14 @@ def main() -> int:
                          "severity": r.severity} for r in results],
         }, ensure_ascii=False, indent=2))
     else:
-        color = not args.no_color and sys.stdout.isatty()
+        # 颜色开关：--color 强制开，--no-color 强制关；
+        # 都没有的话看"这是个终端吗" + "这个终端认不认 ANSI"
+        if args.color:
+            color = True
+        elif args.no_color or not sys.stdout.isatty():
+            color = False
+        else:
+            color = enable_vt()
         st = Style(ascii_only=args.ascii, color=color)
         print()
         print(render(title, [("仓库", shown), ("分支", branch)], results, st))

@@ -269,3 +269,31 @@ def R(fn, *args, **kwargs):
     # `_label` 可以覆盖它，写成学生看得懂的话。
     bound.__name__ = label or getattr(fn, "__name__", "rule")
     return bound
+
+
+def enable_vt() -> bool:
+    """在 Windows 控制台上打开 ANSI 转义处理；返回这个终端能不能显示颜色。
+
+    Windows 10 以前的 cmd 不认 `\033[31m`，会原样打出来（一串乱码）。
+    即使 Win10+ 也要显式打开 ENABLE_VIRTUAL_TERMINAL_PROCESSING。
+    Git Bash / Windows Terminal / VS Code 终端一般已经支持，直接返回 True。
+
+    放在 base.py 是因为**每个会往终端打字的脚本都要用**：
+    grade.py 和两个 verify 脚本，各写一遍容易漏。
+    """
+    if os.name != "nt":
+        return True
+    try:
+        import ctypes
+        k = ctypes.windll.kernel32                     # type: ignore[attr-defined]
+        handle = k.GetStdHandle(-11)                   # STD_OUTPUT_HANDLE
+        mode = ctypes.c_uint32()
+        if not k.GetConsoleMode(handle, ctypes.byref(mode)):
+            return False
+        ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
+        if mode.value & ENABLE_VIRTUAL_TERMINAL_PROCESSING:
+            return True
+        return bool(k.SetConsoleMode(handle,
+                                     mode.value | ENABLE_VIRTUAL_TERMINAL_PROCESSING))
+    except Exception:                                  # noqa: BLE001
+        return False
