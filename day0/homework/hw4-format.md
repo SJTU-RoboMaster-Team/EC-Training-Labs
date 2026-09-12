@@ -210,7 +210,7 @@ python tools/grade.py hw4 .
 ├────────────────────────────────────────────────────────────┤
 │ ✅ 代码符合 clang-format   base/ 缩进符合（4 空格）        │
 │ ✅ 测试全部通过           clamp 4/4 · encoder 4/4          │
-│ ✅ 有独立的格式化提交     style: apply clang-format …      │
+│ ✅ 格式化提交范围正确     style: apply clang-format …      │
 │ ✅ commit message 格式    3 条都符合                       │
 ├────────────────────────────────────────────────────────────┤
 │ 结论   PASS                                                │
@@ -233,7 +233,7 @@ python tools/grade.py hw4 .
 
 - [ ] `base/` 下的 C++ 文件符合 `.clang-format`
 - [ ] `test_encoder` 与 `test_clamp` **全部通过**
-- [ ] 存在一个**独立的**格式化提交（message 里说明了只做格式化）
+- [ ] 存在一个**独立的**格式化提交：message 里说明了只做格式化，并且**这个提交没有碰 `base/` 之外的文件**
 - [ ] 所有 commit message 符合 `type(scope): subject`
 
 ---
@@ -248,6 +248,7 @@ python tools/grade.py hw4 .
 | `git status` 里冒出 `app/` `tests/` 一堆改动 | 格式化范围开成了整个项目 | `git restore app/ tests/ mcu/`，只保留 `base/` |
 | 自查说"base/ 看起来没格式化过" | `base/` 里漏了文件 | 选中整个 `base` 目录再按，不要只选当前文件 |
 | 格式化改动和别的改动混在一个 commit 了 | 提交前没分开 add | `git reset HEAD~1`，重新分别 add + commit |
+| 自查说「格式化提交改了 base/ 之外的文件」 | 格式化时范围开大了，溢出到了 `app/` `tests/` `mcu/` | 把溢出的部分从这次提交里退出来，单独 `git restore` 掉；`git show --stat <那次提交>` 能看到它到底碰了哪些文件 |
 
 ---
 
