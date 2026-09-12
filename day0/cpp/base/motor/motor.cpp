@@ -14,15 +14,16 @@ int16_t intensityLimit(Type type) {
   return 0;
 }
 
-Motor::Motor(djimotor::RawData raw, Type type, ModelFn model)
-    : raw_(raw), type_(type), model_(model) {}
+Motor::Motor(djimotor::RawData raw, Type type) : raw_(raw), type_(type) {}
 
 void Motor::update(djimotor::RawData raw) { raw_ = raw; }
 
 int16_t Motor::setTorque(float target_torque) {
   // TODO(cpp2)：见头文件里的说明。
-  //   提示：算出来的结果可能是 float，转成 int16_t 之前先想清楚
-  //   「直接强转」和「先限幅再转」有什么区别。
+  //
+  // 提示：限幅这一步，真实仓库是这么做的（math.cpp 里的 math::limit）：
+  //     float limit(float val, float min, float max);
+  // 你可以直接调它 —— 那个函数在 cpp1 里你要自己实现。
   (void)target_torque;
   intensity_ = 0;
   return intensity_;

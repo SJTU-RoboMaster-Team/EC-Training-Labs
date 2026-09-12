@@ -1,11 +1,6 @@
 #include "base/motor/motor.h"
 #include "tests/test_util.h"
 
-// 一个假的前馈模型：控制量 = 目标转矩 * 100 + 转速
-static float fakeModel(float target_torque, float speed) {
-  return target_torque * 100.0f + speed;
-}
-
 int main() {
   using namespace test;
 
@@ -15,30 +10,41 @@ int main() {
 
   djimotor::RawData raw;
 
-  // ① 没接模型（model = nullptr）—— 这是最容易崩的地方
+  // ① 正常范围：直接通过
   {
-    motor::Motor m(raw, motor::Type::M3508, nullptr);
-    eq_i(m.setTorque(10.0f), 10, "no model: torque passes through");
+    motor::Motor m(raw, motor::Type::M3508);
+    eq_i(m.setTorque(10.0f), 10, "small torque passes through");
+    eq_i(m.setTorque(-500.0f), -500, "negative torque");
   }
 
-  // ② 接了模型
+  // ② 浮点转整数是**截断**，不是四舍五入
   {
-    motor::Motor m(raw, motor::Type::M3508, &fakeModel);
-    eq_i(m.setTorque(10.0f), 1000, "with model: 10*100+0");
+    motor::Motor m(raw, motor::Type::M3508);
+    eq_i(m.setTorque(1.9f), 1, "truncates toward zero (1.9 -> 1)");
+    eq_i(m.setTorque(-1.9f), -1, "truncates toward zero (-1.9 -> -1)");
   }
 
   // ③ 限幅：M2006 上限 10000
   {
-    motor::Motor m(raw, motor::Type::M2006, nullptr);
+    motor::Motor m(raw, motor::Type::M2006);
     eq_i(m.setTorque(20000.0f), 10000, "clamp to M2006 limit");
     eq_i(m.setTorque(-20000.0f), -10000, "clamp negative side too");
   }
 
-  // ④ intensity() 反映最后一次的结果
+  // ④ 超大值：先限幅再转换才不会出事。
+  //    如果先 static_cast<int16_t>(1e9f) 再限幅，结果完全不可预期。
   {
-    motor::Motor m(raw, motor::Type::M3508, nullptr);
+    motor::Motor m(raw, motor::Type::M3508);
+    eq_i(m.setTorque(1.0e9f), 16384, "1e9 clamps to M3508 limit");
+    eq_i(m.setTorque(-1.0e9f), -16384, "negative 1e9 clamps too");
+  }
+
+  // ⑤ intensity() 反映最后一次结果
+  {
+    motor::Motor m(raw, motor::Type::M3508);
     m.setTorque(500.0f);
     eq_i(m.intensity(), 500, "intensity() keeps last value");
+    eq_i(m.setTorque(0.0f), 0, "zero torque");
   }
 
   return report("test_motor");

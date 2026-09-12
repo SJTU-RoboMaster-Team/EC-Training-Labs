@@ -49,13 +49,13 @@ LESSONS: dict[str, tuple] = {
         R(git.check_message_format, MESSAGE_PATTERN, _label="commit message 格式"),
     ], {"stop_on_fail": True}),
 
-    # ── cpp2 · 函数指针与回调 ──────────────────────────────────
-    # 重点：model_ 可能是 nullptr，调用前必须判空
-    "cpp2": ("C++02 · 函数指针与回调", [
+    # ── cpp2 · 函数与参数传递 ──────────────────────────────────
+    # 重点：限幅与类型转换的先后顺序（先转再限幅，超大值行为不可预期）
+    "cpp2": ("C++02 · 函数与参数传递", [
         R(code.check_build, PROJECT, _label="能编译"),
         R(code.check_tests, PROJECT, ["test_motor"], _label="test_motor 全过"),
-        R(code.check_contract, PROJECT, PROBES / "callback_is_nullable.cpp",
-          _label="回调可以为空"),
+        R(code.check_contract, PROJECT, PROBES / "torque_signature.cpp",
+          _label="setTorque 签名没改"),
         R(git.check_message_format, MESSAGE_PATTERN, _label="commit message 格式"),
     ], {"stop_on_fail": True}),
 
