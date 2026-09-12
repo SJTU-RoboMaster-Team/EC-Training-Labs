@@ -19,7 +19,10 @@ namespace math {
 float limit(float val, float min, float max);
 
 // 循环限幅：把角度折算到 [min, max) 里。degNormalize180 就是它配上 [-180, 180]。
-float loopLimit(float val, float min, float max);
+//
+// 注意参数写法：第一个按值传，后两个按 const 引用传 ——
+// 这就是真实仓库里的原样（math.h）。两种写法都对，但你要能说清区别。
+float loopLimit(float val, const float& min, const float& max);
 
 // 角度规范化(deg -> [-180, 180])
 float degNormalize180(float angle);
