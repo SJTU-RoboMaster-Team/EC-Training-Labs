@@ -12,6 +12,8 @@ enum Mode_e : uint8_t {
   EXCHANGE,
   STORAGE_FRONT,
   STORAGE_BACK,
+  // TODO(hw5-c): 标定流程现在借用 FOLD 模式，语义不清。
+  //              加一个独立的工作模式 CALIBRATE。
 };
 
 // 电机反馈摘要（共享类型：谁需要新字段都往这里加）

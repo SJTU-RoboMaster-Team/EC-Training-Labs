@@ -5,6 +5,8 @@
 
 // 调参集中在这一块。谁调什么参数都改这里，所以它总是被改。
 namespace ctrl_params {
+// TODO(hw5-a): 夹爪默认开合速度 4.0 偏慢，抓矿时明显拖沓。
+//              按当前值的 1.5 倍调，抓取行程会跟手很多。
 constexpr float kDefaultClampSpeed = 4.0f;
 constexpr float kJointRate = 0.02f;
 constexpr float kChassisRotateRate = 3.0f;
