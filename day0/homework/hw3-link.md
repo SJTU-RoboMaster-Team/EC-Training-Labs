@@ -209,14 +209,19 @@ python tools/build.py
 ```bash
 git status
 git diff                     # 看一遍
-git add app/arm.h app/control.cpp base/angle.cpp CMakeLists.txt
+git add base/math.h base/angle.cpp app/motor_monitor.cpp CMakeLists.txt
 git add ../homework/answers-hw3.md
 git diff --staged
 git commit
 ```
 
-> 如果你把 `arm.h` 的声明和 `control.cpp` 的调用、以及新文件的实现
-> 分散在几个 commit 里也没问题——**只要每个 commit 的 message 说得清**。
+> 上面这五个文件是你这次真正动过的：`math.h` 里把实现换成了声明、
+> `motor_monitor.cpp` 里改了调用、`angle.cpp` 是新文件、
+> `CMakeLists.txt` 里把它加进了构建、还有你写的回答。
+>
+> **分几个 commit 提交都行** —— 只要每个 commit 的 message 说得清。
+> 但别漏文件：`git status` 里还有没 add 的东西，
+> **HW4 的「开始之前」会检查工作区干净**。
 
 commit message 参考：
 

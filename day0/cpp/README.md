@@ -24,7 +24,7 @@ lecture.md      自学讲义（两万多字，带自测题）
 
 **不要直接开始改代码。** 讲义是按"读代码时会卡在哪"组织的，
 每一节都指了它在真实仓库里的对应位置。每份练习要读哪几节，
-讲义 §0.4 有一张表。
+讲义 §0.4 有一张表（**那张是权威**，这里的和它一致）。
 
 ---
 
@@ -32,10 +32,10 @@ lecture.md      自学讲义（两万多字，带自测题）
 
 | 练习 | 改哪个文件 | 做什么 | 先读 |
 | --- | --- | --- | --- |
-| `cpp1` | `base/common/math.cpp` | 实现四个数学函数 | §3、§6.7 |
-| `cpp2` | `base/motor/motor.cpp` | `Motor::setTorque`：**先限幅、再转整数** | §7b.1–7b.3、§6c.3 |
-| `cpp3` | `app/chassis.cpp` | 状态机 + 模式名 | §8.3、§6b |
-| `cpp4` | `base/motor/dji_motor_driver.cpp` | 解析 / 打包 CAN 报文 | §6c |
+| `cpp1` | `base/common/math.cpp` | 实现四个数学函数 | §3、§4、§6.7、§6c.1–§6c.4 |
+| `cpp2` | `base/motor/motor.cpp` | `Motor::setTorque`：**先限幅、再转整数** | §7b.1–§7b.3、§6c.3 |
+| `cpp3` | `app/chassis.cpp` | 状态机 + 模式名 | §8.1–§8.3、§6b |
+| `cpp4` | `base/motor/dji_motor_driver.cpp` | 解析 / 打包 CAN 报文 | §6c 全部（重点 §6c.5、§6c.6） |
 
 代码里搜 `TODO(cpp` 就能找到全部要改的地方 ——
 在 IDE 里按 `Ctrl+Shift+F` 全局搜索（CLion / VS Code 都是这个键）。
