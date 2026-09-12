@@ -48,39 +48,33 @@ ColumnLimit: 120
 **但工程里的代码其实不符合它。** 这是真实项目里非常常见的情况：
 配置早就定好了，只是没人统一跑过一遍。
 
-你可以自己验证：
-
-```bash
-# 看看哪些文件"不合规"（不修改文件，只检查）
-clang-format --style=file --dry-run --Werror app/arm.h
-```
-
-> **Windows 上没装 clang-format？** 不用装——**CLion 自带了**。
-> 见下面 Task 1 的路线 A。
+> **你不需要装 clang-format。** 现在的 IDE 基本都内置了格式化，
+> CLion 用的就是 clang-format，读的也是这个配置文件。见 Task 1。
 
 ---
 
 ## 任务
 
-### Task 1 · 跑一遍格式化
+### Task 1 · 在 IDE 里跑一遍格式化
 
-#### 路线 A · CLion（推荐，不用装东西）
+**在你的 IDE 里执行「重新格式化代码」这个动作。** 快捷键各 IDE 不一样：
 
-1. **Settings → Editor → Code Style**
-2. 勾上 **Enable ClangFormat**（有些版本叫 "Use clang-format"）
-3. 在项目树里选中 `app/`、`base/`、`tests/` 三个目录
-4. 按 **Ctrl + Alt + L**（Reformat Code）
+| IDE | 默认快捷键 |
+| --- | --- |
+| CLion / IntelliJ 系列 | `Ctrl + Alt + L` |
+| VS Code | `Shift + Alt + F` |
+| 其它 | 在菜单里找 **Code → Reformat Code** 之类 |
 
-#### 路线 B · 命令行
+> **以你自己 IDE 的实际配置为准。** 有人改过键位映射，也有人用的是别的编辑器——
+> 关键是找到那个「格式化当前文件 / 整个项目」的功能，不是背快捷键。
+>
+> CLion 用户额外确认一下：**Settings → Editor → Code Style** 里要勾上
+> **Enable ClangFormat**（有些版本叫 "Use clang-format"），
+> 否则它用的是 IDE 自己的规则，不是工程里那份 `.clang-format`。
 
-```bash
-clang-format --style=file -i app/*.cpp app/*.h base/*.h tests/*.cpp tests/*.h
-```
+**要格式化的范围：** `day0/project/app/`、`base/`、`tests/` 三个目录下的所有 C++ 文件。
 
-> Windows 上如果没有 `clang-format` 命令，可以在 CLion 安装目录里找
-> （`bin/clang/win/clang-format.exe`），或者直接用路线 A。
-
----
+> 在项目树里**选中这三个目录**，再按格式化快捷键，一次搞定。
 
 ### Task 2 · 看懂这个 diff
 
@@ -177,9 +171,12 @@ git status                    # 干净
 ## 自查
 
 ```bash
-# 在 lab/ 目录下
-python grade.py hw4 https://github.com/<你的用户名>/EC-Training-Labs
+# 在你仓库的根目录下（就是 EC-Training-Labs/ 这一层）
+python tools/grade.py hw4 .
 ```
+
+> **`grade.py` 就在你的仓库里**（`tools/grade.py`）。它和老师用的是同一份代码，
+> 所以**你跑出什么结果，老师就验收什么结果**。
 
 **期望看到：**
 
@@ -187,7 +184,7 @@ python grade.py hw4 https://github.com/<你的用户名>/EC-Training-Labs
 ┌────────────────────────────────────────────────────────────┐
 │ HW4 · 格式化                                               │
 ├────────────────────────────────────────────────────────────┤
-│ ✅ 代码符合 clang-format   12/12 个文件合规                │
+│ ✅ 代码符合 clang-format   缩进看起来符合（4 空格）        │
 │ ✅ 测试全部通过           clamp 4/4 · encoder 4/4          │
 │ ✅ 有独立的格式化提交     style: apply clang-format …      │
 ├────────────────────────────────────────────────────────────┤
@@ -219,10 +216,11 @@ python grade.py hw4 https://github.com/<你的用户名>/EC-Training-Labs
 
 | 症状 | 原因 | 怎么办 |
 | --- | --- | --- |
-| `clang-format: command not found` | Windows 上没装在 PATH | 用 CLion 路线 A；或找 CLion 自带的 exe |
 | 格式化后测试挂了 | 误改了逻辑 | `git diff --ignore-all-space` 看真实改动，改回来 |
-| CLion 按 Ctrl+Alt+L 没反应 | 没勾 Enable ClangFormat | Settings → Editor → Code Style |
+| 按了快捷键没反应 | 键位被改过 | 在菜单里找 Reformat Code；或看自己的键位映射 |
+| CLion 格式化的结果和工程配置不一致 | 没勾 Enable ClangFormat | Settings → Editor → Code Style |
 | 格式化只改了部分文件 | 只选中了部分目录 | 全选 `app/` `base/` `tests/` 再按 |
+| 自查说"看起来没格式化过" | 格式化范围漏了文件 | 确认三个目录都选中了 |
 | 格式化改动和别的改动混在一个 commit 了 | 提交前没分开 add | `git reset HEAD~1`，重新分别 add + commit |
 
 ---
@@ -231,7 +229,7 @@ python grade.py hw4 https://github.com/<你的用户名>/EC-Training-Labs
 
 | 内容 | 在哪 |
 | --- | --- |
-| clang-format 怎么配 | Day 0 录播 · `Tools/03-clang-format.md` |
+| clang-format 是什么、怎么配 | Day 0 录播 · `Tools/03-clang-format.md` |
 | atomic commit | Day 0 课件 Loop 2 |
 | `git diff` 的各种开关 | Day 0 课件 Loop 1 |
 

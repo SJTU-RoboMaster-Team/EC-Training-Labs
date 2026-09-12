@@ -29,6 +29,6 @@ python tools/build.py
 app/      业务模块（control / arm / motor_monitor / clamp）
 base/     底层（电机数据结构、数学工具）
 tests/    单元测试
-tools/    build.py（构建+测试）、setup_worktree.py（铺出接手时的工作区）
+tools/    build.py（构建+测试）、make_generated_files.py（HW5 用）
 mcu/      STM32F407 的 Keil 工程
 ```

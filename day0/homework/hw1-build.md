@@ -52,7 +52,7 @@ day0/project/
 ├── tests/                单元测试
 └── tools/
     ├── build.py          一键构建 + 测试
-    └── setup_worktree.py （HW5 才用，现在不用管）
+    └── make_generated_files.py （HW5 才用，现在不用管）
 ```
 
 **怎么验证：** 你能说出"电机反馈"的代码在哪个文件里。
@@ -148,9 +148,12 @@ testutil::check_near("backward across zero", run(back_wrap, 4), -12.0f, 0.01f);
 ## 自查
 
 ```bash
-# 在 lab/ 目录下（不是在你的仓库里）
-python grade.py hw1 https://github.com/<你的用户名>/EC-Training-Labs
+# 在你仓库的根目录下（就是 EC-Training-Labs/ 这一层）
+python tools/grade.py hw1 .
 ```
+
+> **`grade.py` 就在你的仓库里**（`tools/grade.py`）。它和老师用的是同一份代码，
+> 所以**你跑出什么结果，老师就验收什么结果**。
 
 **期望看到：**
 

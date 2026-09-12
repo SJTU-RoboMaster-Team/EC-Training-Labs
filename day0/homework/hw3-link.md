@@ -231,9 +231,12 @@ feat(arm): add wrap_angle_deg and wire it into the control loop
 ## 自查
 
 ```bash
-# 在 lab/ 目录下
-python grade.py hw3 https://github.com/<你的用户名>/EC-Training-Labs
+# 在你仓库的根目录下（就是 EC-Training-Labs/ 这一层）
+python tools/grade.py hw3 .
 ```
+
+> **`grade.py` 就在你的仓库里**（`tools/grade.py`）。它和老师用的是同一份代码，
+> 所以**你跑出什么结果，老师就验收什么结果**。
 
 **期望看到：**
 
