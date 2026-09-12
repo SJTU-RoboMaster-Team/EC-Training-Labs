@@ -37,11 +37,8 @@ lecture.md      自学讲义（两万多字，带自测题）
 | `cpp3` | `app/chassis.cpp` | 状态机 + 模式名 | §8.3、§6b |
 | `cpp4` | `base/motor/dji_motor_driver.cpp` | 解析 / 打包 CAN 报文 | §6c |
 
-代码里搜 `TODO(cpp` 就能找到全部要改的地方：
-
-```bash
-grep -rn "TODO(cpp" .
-```
+代码里搜 `TODO(cpp` 就能找到全部要改的地方 ——
+在 IDE 里按 `Ctrl+Shift+F` 全局搜索（CLion / VS Code 都是这个键）。
 
 **顺序有依赖**：`cpp3` 的 `Chassis::update` 要调 `cpp2` 写好的 `Motor::setTorque`。
 所以按 cpp1 → cpp2 → cpp3 做，`cpp4` 什么时候做都行。

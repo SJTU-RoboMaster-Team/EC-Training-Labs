@@ -63,7 +63,7 @@ C++ 基础在 Day 0 **不占课时、不线下讲**。它是发给你的自学�
 | D | §11–§14 | 编译单元与链接、嵌入式约束、`std::`、C 混用 | 40 min |
 | — | §16–§17 | 自测题 + 答案 | 20 min |
 
-**「如果你只有 30 分钟」**：读 §3（声明与定义）、§4（`inline`/ODR）、§11.3（看符号表），
+**「如果你只有 30 分钟」**：读 §3（声明与定义）、§6c.1（位运算）、§7b.2（参数怎么传），
 再扫一眼 §0.4 的对应表。这三节能解释你在 HW1–HW3 里会撞到的绝大部分报错。详细版在 `README.md`。
 
 ### 0.4 和作业的对应
@@ -175,14 +175,8 @@ target_include_directories(day0_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 它把工程根目录加进头文件搜索路径，所以工程里所有包含都写成**从根目录算起的相对路径**——
 `#include "app/arm.h"`、`#include "base/math.h"`，而不是 `#include "../base/math.h"`。
-真实的编译命令里能看到这个 `-I`：
-
-```bash
-$ grep CXX_INCLUDES build/CMakeFiles/day0_core.dir/flags.make
-CXX_INCLUDES = -I/home/.../day0/project
-$ grep CXX_FLAGS build/CMakeFiles/day0_core.dir/flags.make
-CXX_FLAGS = -g -std=gnu++17
-```
+真实的编译命令里能看到这个 `-I`。想自己看一眼的话，CMake 把它写在了
+`build/CMakeFiles/day0_core.dir/flags.make`（一个纯文本文件，用编辑器打开就行）。
 
 顺带一句：`CMakeLists.txt:4` 写的是 `set(CMAKE_CXX_STANDARD 17)`，实际传下去是
 `-std=gnu++17`（GNU 扩展默认开着）。这两个不是一回事，嵌入式工具链上尤其要注意。
@@ -409,14 +403,8 @@ collect2: error: ld returned 1 exit status
    （想验证的话：`g++ -std=c++17 -I. -fsyntax-only app/motor_monitor.cpp` 退出码 0。）
 
 2. **`libday0_core.a` 也建成了。** 静态库只是 `.o` 的打包，`ar` 不解析符号，
-   它不关心里面有没有未定义的引用。`nm` 能看到这个未定义符号：
-
-   ```text
-   $ nm -C build/libday0_core.a | grep wrap
-                    U wrap_angle_deg(float)
-   ```
-
-   `U` 就是 undefined：**这个目标文件用到了它，但它不在这里**。
+   它**不关心里面有没有未定义的引用** —— 一个 `.a` 里允许存在「用到了但没定义」的符号。
+   所以「库编过了」不等于「没问题」。
 
 3. **报错发生在链接 `test_encoder` 的时候。** 链接器把 `test_encoder.cpp.o`、
    `libday0_core.a` 里的 `.o` 和 C++ 运行库拼在一起，建立符号表。它发现了
@@ -438,12 +426,7 @@ collect2: error: ld returned 1 exit status
   **做法 A 里最容易漏的一步是改 `CMakeLists.txt`。** 文件写了但没加进构建系统，
   症状和"根本没写"一模一样——这是真实工程里最常见的链接错误来源。
 
-修复后再看符号表，`U` 变成了 `T`（定义）：
-
-```text
-$ nm -C build/libday0_core.a | grep wrap
-0000000000000000 T wrap_angle_deg(float)
-```
+修复后再链接一次，那一行 `undefined reference` 就没了 —— 链接器终于找到了定义。
 
 ### 3.6 遇到 `undefined reference` 的三步
 
@@ -522,14 +505,13 @@ inline float deg_normalize_180(float d) {
 
 ### 4.4 `inline` 不等于 `static`
 
-两种"能在头文件里定义"的办法，语义完全不同，用 `nm` 一看就清楚：
+两种"能在头文件里定义"的办法，语义完全不同：
 
-```bash
-$ nm -C app/motor_monitor.cpp.o | grep deg_normalize
-0000000000000000 W deg_normalize_180(float)
-```
+**`inline`** = 这些多份定义是**同一个实体**，链接器合并成一份。
+**`static`** = 每个 TU 一份**独立的副本**，互相看不见。
 
-`W`（weak，弱符号）= 这些多份定义是**同一个实体**，链接器合并成一份。
+怎么验证：把 `inline` 去掉、只留函数定义 —— 一个 `.cpp` 包含它时没事，
+**两个以上** `.cpp` 包含就报 `multiple definition`。那个报错就是证据，不需要额外工具。
 如果写成 `static float deg_normalize_180(...)`，符号会变成小写 `t`（local），
 意思是**每个 TU 一份独立副本**，链接器不管。区别在于：函数内 `static` 变量、
 函数地址比较、模板实例化，这两种写法行为不一样。**头文件里放工具函数用 `inline`。**
@@ -549,21 +531,10 @@ const MotorData& data() const { return data_; }
 ```
 
 这两个函数在头文件里、类体内部，**没写 `inline` 也是 `inline`**。所以它们可以被
-几十个 TU 包含而不冲突。证据（`test_encoder.cpp` 用了 `data()`）：
+几十个 TU 包含而不冲突 —— 和函数级 `inline` 是同一个机制：多份定义，链接器合并成一份。
 
-```bash
-$ nm -C tests/test_encoder.cpp.o | grep -i "data\|check_near"
-0000000000000000 W testutil::check_near(char const*, float, float, float)
-0000000000000000 W MotorMonitor::data() const
-```
-
-`W` 就是隐含 `inline` 的证据；对比一下定义在 `.cpp` 里的成员函数，符号是强符号 `T`：
-
-```bash
-$ nm -C app/clamp.cpp.o
-0000000000000000 T Clamp::beginCalibration()
-0000000000000034 T Clamp::update(float, float)
-```
+反过来，定义在 `.cpp` 里的成员函数（`Clamp::update`、`Clamp::beginCalibration`）
+就是**普通函数**：只能有一份定义，也不能被别的 TU 直接 include 到。
 
 **实践规则**：一行能写完、和成员变量强相关的取数函数（getter），写在类体里；
 稍微有点逻辑的（比如 `Clamp::update`）放 `.cpp`。工程里就是这个分界。
@@ -1774,20 +1745,11 @@ Mode_e g_mode = Mode_e::FOLD;
 匿名命名空间的成员**只在当前 TU 可见**，外部链接不到。这就是"模块私有全局变量"的
 标准写法。用 `nm` 看 `control.cpp.o` 的符号表，一眼就能分辨：
 
-```text
-$ nm -C app/control.cpp.o
-0000000000000000 T controlInit()                        ← 大写 T：外部可见
-0000000000000049 T controlLoop()
-0000000000000078 T currentMode()
-0000000000000004 r ctrl_params::kJointRate             ← 只读数据
-0000000000000000 b (anonymous namespace)::g_joint_monitor   ← 小写 b：TU 私有
-000000000000001a b (anonymous namespace)::g_mode
-0000000000000018 b (anonymous namespace)::g_clamp
-                 U MotorMonitor::reset(float)           ← U：用到了但定义在别处
-                 U Clamp::endCalibration()
-```
+怎么确认它们真的"只在本文件可见"：**在另一个 `.cpp` 里写 `extern` 引用它们，链接会报
+`undefined reference`** —— 因为那份符号压根没导出。反过来，把 `namespace { }` 去掉，
+同样的代码就能链上了。
 
-符号表里 `T` = 全局代码、`b` = TU 私有数据（bss 段）、`r` = 只读数据、`U` = 未定义。
+（附录 A.2 有这三份目标文件的完整符号表实测输出，想看得更细可以翻。）
 **大小写就是"是否对外可见"的标记**——这是读链接错误时最有用的一个工具，
 完整对照表见 §11.3。
 
@@ -1854,13 +1816,9 @@ inline int& checks() {
 2. **在 `inline` 函数里的 `static` 变量，全程序共用一份**，不是每个 TU 一份。
    证据是符号表里的 `u`：
 
-   ```text
-   $ nm -C tests/test_encoder.cpp.o | grep '::n'
-   0000000000000000 u testutil::checks()::n
-   0000000000000000 u testutil::failures()::n
-   ```
-
-   `u` 是 GNU 的 unique global symbol，专门用于这种"inline 函数里的静态变量"。
+   `checks()` 定义在头文件里、被多个 TU 包含，所以严格说每个 TU 都会有一份 `n`；
+   链接器把它们合并成一个 —— 这是"头文件里的 `inline` 函数里的 `static` 变量"
+   该有的行为。（附录 A.4 有符号表实测，想确认可以翻。）
 
 **嵌入式上的注意点**：函数内 `static` 意味着这个函数**不可重入**。
 如果它会被中断和主循环同时调用，就会出现竞态。工程里 `checks()` 只在 main 里用，
@@ -1890,7 +1848,7 @@ static constexpr float kResistThreshold = 1400.0f;
 
 ---
 
-## 11. 编译单元、链接与符号表
+## 11. 编译单元与链接
 
 ### 11.1 从源码到可执行文件
 
@@ -1923,25 +1881,39 @@ HW3 里那个未定义符号，`libday0_core.a` **照样生成成功**。原因�
 
 记住这个顺序，你以后看到"库编过了但程序链不过"就不会困惑。
 
-### 11.3 符号表怎么读
+### 11.3 链接错误怎么读（不需要额外工具）
 
-`nm -C` 里的 `-C` 是 demangle，把 `_Z17deg_normalize_180f` 还原成 `deg_normalize_180(float)`。
-看第一列那个字母：
+链接报错就那么几种，看**报错原文**就够了：
 
-| 字母 | 含义 | 例子 |
-| --- | --- | --- |
-| `T` / `t` | 代码段，(大写 = 外部可见，小写 = 本 TU 私有) | `T Clamp::update(float, float)` |
-| `W` / `w` | 弱符号（`inline` 函数、模板实例化、类内定义的成员函数） | `W MotorMonitor::data() const` |
-| `U` | 未定义：用到了，定义在别处（链接器要找的东西） | `U wrap_angle_deg(float)` |
-| `b` / `B` | 未初始化数据段（bss），小写 = 私有 | `b (anonymous namespace)::g_clamp` |
-| `r` / `R` | 只读数据段 | `r ctrl_params::kDefaultClampSpeed` |
-| `u` | unique global（inline 函数里的静态变量） | `u testutil::checks()::n` |
+```text
+/usr/bin/ld: tests/test_encoder.cpp.o: in function `main':
+tests/test_encoder.cpp:8: undefined reference to `math::limit(float, float, float)'
+collect2: error: ld returned 1 exit status
+```
 
-工程里三份真实符号表（本机实测）放在附录 A，建议对着看一遍。
+**`undefined reference to X`** —— 链接器在找 `X` 的定义，没找到。三件事依次查：
 
-**这套读法在嵌入式里同样管用**：Keil 生成的 `.map` 文件、`fromelf` 的符号输出，
-读法是一样的。链接报错说 `undefined symbol xxx`、或者 flash 里莫名多了一份代码，
-用这套方法都能定位。
+| 查什么 | 怎么查 |
+| --- | --- |
+| ① 这个函数**写了吗**？ | 在工程里搜函数名（IDE 里 `Ctrl+Shift+F`），看是只有声明还是也有函数体 |
+| ② 写了的话，**加进构建系统了吗**？ | 看 `CMakeLists.txt` 的 `add_library` 列表里有没有那个 `.cpp`（§11.4） |
+| ③ 名字**对得上吗**？ | 声明和定义的参数、`const` 有没有写岔；是不是忘了 `extern "C"`（§14） |
+
+**报错里指的文件是"调用点"，不是"缺失的地方"** —— 这一点最容易看错。
+上面那条报的是 `test_encoder.cpp:8`，但问题不在那儿，在 `math::limit` 没有定义。
+
+**`multiple definition of X`** —— 反过来：同一个名字有好几份定义。
+最常见的原因是**头文件里写了普通函数，被多个 `.cpp` include**（§4.2）。
+
+> **想加深再看**：如果本机有 `nm`（装了 MinGW-w64 或者 Linux 就有），
+> 可以用它看目标文件里的符号：`nm -C app/control.cpp.o`。
+> 第一列的字母 `T`（有定义）、`U`（只用到、没定义）、`W`（弱符号，`inline` 就是这种）
+> 能让你在报错之前就发现问题。
+>
+> **但这不是必须的。** 上面那三种报错足够定位绝大多数链接问题，
+> 而且它们不需要装任何东西。战队日常排查也主要靠报错原文 + 搜代码。
+>
+> 完整的三份符号表实测输出收在附录 A.2，好奇的时候再翻。
 
 ### 11.4 "文件写了但没加进构建系统"
 
@@ -2038,16 +2010,10 @@ template<typename, typename = void>    // 偏特化的经典形状
 
 ### 12.1 先看这个工程里没有什么
 
-在工程里搜一遍（不含 `build/`）：
+这个工程里**一处都没有**用到 `new` / `delete` / `try` / `catch` /
+`std::vector` / `std::string`。在 IDE 里 `Ctrl+Shift+F` 搜这几个词就能确认。
 
-```bash
-$ grep -rnE "\b(new|delete|try|catch|throw|dynamic_cast|typeid)\b|std::(vector|string|function)" \
-    --include=*.cpp --include=*.h .
-$ echo $?
-1                     # 无匹配
-```
-
-**一处都没有。** 全部 `std::` 用法只有三个名字（共 7 处调用），都在测试里：
+全部 `std::` 用法只有三个名字（共 7 处调用），都在测试里：
 
 ```cpp
 // tests/test_util.h:4-6
@@ -2056,9 +2022,6 @@ $ echo $?
 #include <cstring>
 // :23 std::fabs   :25 :27 :36 :38 :43 std::printf   :34 std::strcmp
 ```
-
-> 搜的时候要加词边界：`tests/test_util.h:8` 的注释里写了"刻意不引 gtest / catch2"，
-> 不带 `\b` 的 `catch` 会命中那句注释。
 
 这不是"作者不会用"，是刻意的选择。下面说明为什么。
 
@@ -2480,15 +2443,15 @@ python tools/grade.py cpp1 .   # 用验收工具自查（和老师用的是同�
 
 **4.** 匿名命名空间的对象具有内部链接，只有本 TU 能访问；放在全局作用域则是外部链接，
 别的 TU 用 `extern` 就能访问，也更容易撞名。
-`nm -C app/control.cpp.o` 里匿名命名空间的符号是小写 `b` 且带
-`(anonymous namespace)` 前缀，全局函数是 `T`。（§9.3、§11.3）
+判断办法：在另一个 `.cpp` 里试着引用它 —— 匿名命名空间的东西链接不上，
+全局的能链上。（§9.3）
 
 **5.** `static`：这个常量属于类、不属于对象，所有对象共用一份，`sizeof(Clamp)` 不含它。
 `constexpr`：编译期常量，能直接编进指令、不占 RAM。
 C++17 起类内 `static constexpr` 不需要在 `.cpp` 里再定义一次。（§5.3、§10.3）
 
 **6.** 定义在类体内部的成员函数**隐含 `inline`**。
-它在多个 TU 里各有一份定义，链接器合并。`nm` 里它的符号是 `W`（弱符号）。（§4.5）
+它在多个 TU 里各有一份定义，链接器合并成一份。（§4.5）
 
 **7.** 返回类型里的 `const` 修饰"通过这个引用能做什么"——调用者只能读，不能改内部状态。
 参数列表后面的 `const` 修饰这个成员函数本身——它承诺不修改对象，因此可以被
@@ -2553,7 +2516,14 @@ RTTI：类型信息表占空间，而且这个场景用状态码更合适。
 
 ---
 
-## 附录 A · 本机实测记录
+## 附录 A · 本机实测记录（**选读**）
+
+> **这一节不用读。** 它是正文里那些结论的原始证据，用的是 `nm` / `ar` 这类
+> 命令行工具 —— **Windows 上默认没有，装了 MinGW-w64 或 Git Bash 才会有。**
+>
+> 正文已经把这些工具的输出翻译成了"你会看到什么报错、该查什么"，
+> 不需要你自己跑一遍。只有两种情况值得翻这里：
+> ① 你想确认某个结论是不是真的；② 你想学怎么用这些工具（以后在 Linux 上会用得到）。
 
 环境：`g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0`，`cmake version 3.22.1`。
 命令都在 `day0/project` 下执行。
