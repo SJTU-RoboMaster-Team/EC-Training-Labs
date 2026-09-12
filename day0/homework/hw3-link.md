@@ -272,6 +272,7 @@ python tools/grade.py hw3 .
 - [ ] `test_encoder` 与 `test_clamp` **全部通过**
 - [ ] `day0/homework/answers-hw3.md` 存在，且三个问题都有实质回答
 - [ ] `wrap_angle_deg` 确实有实现（不是只有声明）
+- [ ] 所有 commit message 符合 `type(scope): subject`
 
 ---
 
