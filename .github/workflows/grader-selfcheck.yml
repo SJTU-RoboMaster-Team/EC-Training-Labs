@@ -1,0 +1,53 @@
+name: Autograder self-check
+
+# 检查的是 `tools/grade.py` 这套 Autograder 本身，不是学生的作业。
+# 学生作业的验收靠 `python tools/grade.py <作业> <他的仓库>`，不在这里跑。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 同一分支上后一次推送取消前一次。
+concurrency:
+  group: grader-selfcheck-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 只用构建 starter 工程需要的系统工具 —— Python 侧只有标准库，
+      # 没有 requirements.txt 可装。
+      - name: Install build dependencies
+        timeout-minutes: 10
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            build-essential cmake git
+          # hw4 用 clang-format 精确查格式；装不上时 rulelib 会退回缩进启发式
+          # 并明确标注，不是静默通过。所以这一条允许失败。
+          sudo apt-get install -y -qq --no-install-recommends clang-format \
+            || echo "::warning title=clang-format::没装上，hw4 的格式检查将退回启发式"
+
+      - name: Show toolchain versions
+        run: |
+          python --version
+          cmake --version | head -1
+          g++ --version | head -1
+          clang-format --version || true
+
+      - name: Run grader self-check
+        run: python tools/selftest.py --verbose
